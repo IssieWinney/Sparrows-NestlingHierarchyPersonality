@@ -15,7 +15,7 @@
 # read in the data:
 
 rm(list=ls())
-setwd("masterdatasheets")
+setwd("C:/Users/Issie/SkyDrive/PhD/masterdatasheets")
 
 # nestling mass and tarsus data:
 nestmass <- read.table("nestling-d2d12May2014-plustarsusJan2015.txt",
@@ -399,6 +399,16 @@ table(ar12$cf, ar12$FPLN)
 ar12$tarsus <- massd12$tarsus[match(ar12$birdid, massd12$birdid)]
 summary(ar12$tarsus)
 
+# in this subset, how many am I missing tarsus for?
+length(unique(ar12$birdid[which(is.na(ar12$tarsus))]))
+
+
+# how many individuals are missing one or both mass measurements?
+length(unique(ar12$birdid[which(is.na(ar12$mass))]))
+length(unique(ar12$birdid[which(is.na(ar12$d2mass))]))
+
+
+
 # from this data set, I remove nestlings for which I do not 
 # know mass on day two:
 ar123 <- subset(ar12, ar12$d2mass!="NA")
@@ -468,6 +478,11 @@ plot(singletarsusmass$mass, singletarsusmass$tarsus)
 # now take the residuals:
 lmt <- lm(mass~tarsus, data=singletarsusmass)
 plot(lmt)
+
+
+
+
+
 summary(lmt)
 
 singletarsusmass$residmass2 <- residuals(lmt)
@@ -1557,6 +1572,19 @@ plot(edgecfYe$d12mass, edgecfYe$deld2d12)
 
 
 # will have to take care with all of these.
+
+# how does activity change with a change in hierarchy place?
+plot(edgecfYe$deld2, edgecfYe$end)
+plot(edgecfYe$deld2d12, edgecfYe$end)
+
+# looks like lower on d2 and higher on d12 is better, but these
+# probably correlate to d12 mass:
+
+plot(edgecfYe$deld2, edgecfYe$d12mass)
+plot(edgecfYe$deld2d12, edgecfYe$d12mass)
+# especially with the latter, it might be very tough to draw the
+# two apart:
+cor(edgecfYe$deld2d12, edgecfYe$d12mass)
 
 
 # another way to explore colinearity is to calculate
@@ -2737,9 +2765,16 @@ approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
 na12 <- which(is.na(ar$mass))
 na2 <- which(is.na(ar$d2mass))
 
+
+# how many individuals are missing one or both?
+length(unique(ar$birdid[which(is.na(ar$mass))]))
+length(unique(ar$birdid[which(is.na(ar$d2mass))]))
+
 # pull out the associated broods from those rows:
 s.exclude <- unique(ar$social[na12])
 s.exclude2 <- unique(ar$social[na2])
+
+
 
 # 26 social broods to exclude from my first
 # sets of models with the full data set. These
@@ -2785,6 +2820,9 @@ which(match(ar$birdid, exclude.ids)>0)
 s.exclude4 <- ar$social[which(match(ar$birdid, exclude.ids)>0)]
 n.exclude4 <- ar$natal[which(match(ar$birdid, exclude.ids)>0)]
 
+length(unique(s.exclude4))
+length(unique(n.exclude4))
+length(unique(c(s.exclude4,n.exclude4)))
 
 
 socialtoexclude <- unique(c(s.exclude, s.exclude2, s.exclude3, s.exclude4))
@@ -3298,3 +3336,83 @@ table(with(arducfY, tapply(natal, social, FUN = function(x) length(unique(x)))))
 length(unique(arducfY$social))
 # better here, 29 out of 87, but still. Two thirds of nestlings
 # remain with all their original nest mates.
+
+
+
+######################################################################
+######################################################################
+
+# Question from JS 20160324
+# In the model comparing cross-fostered individuals, what is the control
+# for the experimental treatment of changing place in the hierarchy?
+# Can the manipulated but not changed place individuals be included because
+# they are part of the general manipulation but did not experience the change,
+# so would be zero for delta hierachy?
+
+# make an appropriate data set
+{
+  edgeCF <- subset(edgeall, edgeall$CFN!="N")
+  
+  table(edgeCF$CF)
+  
+  edgeCF$zd2deltasoc <- scale(edgeCF$d2deltasoc)
+  edgeCF$zd12deltasoc <- scale(edgeCF$d12deltasoc)
+  
+  edgeCF$zdeld2 <- scale(edgeCF$deld2)
+  edgeCF$zdeld2d12 <- scale(edgeCF$deld2d12)
+  
+  edgeCF$ztime <- scale(edgeCF$time)
+  edgeCF$zsocbroodsz <- scale(edgeCF$socbroodsz)
+  edgeCF$zendprob <- scale(edgeCF$endprob)
+  edgeCF$zd2mass <- scale(edgeCF$d2mass)
+  edgeCF$zd12mass <- scale(edgeCF$d12mass)
+  edgeCF$zresidmass <- scale(edgeCF$residmass)
+  
+  edgeCF$factorbirdid <- as.factor(edgeCF$birdid)
+  edgeCF$factorsocial <- as.factor(edgeCF$social)
+  edgeCF$factornatal <- as.factor(edgeCF$natal)
+}
+
+# did this work how I wanted?
+{
+  table(edgeCF$CF)
+  summary(edgeCF$deld2)
+  hist(edgeCF$deld2)
+  
+  plot(edgeCF$deld2, edgeCF$end)
+  plot(edgeCF$deld2d12, edgeCF$end)
+}
+
+# the basic, no frills model
+{
+  
+  coxmeCF.reduced.control <- coxme(Surv(start, end, finish)~ strata(wall)+
+                             zdeld2 + zdeld2d12 +
+                             (1|factorbirdid) + (1|factorsocial) + 
+                             (1|factornatal),
+                           data=edgeCF)
+  
+  print(coxmeCF.reduced.control)
+}
+
+# the deld2 and deld2d12 have spookily similar z and p values and
+# coefficient estimates. Are they overlapping? 
+
+{
+  
+  coxmeCF.reduced.control.d2 <- coxme(Surv(start, end, finish)~ strata(wall)+
+                                     zdeld2 +
+                                     (1|factorbirdid) + (1|factorsocial) + 
+                                     (1|factornatal),
+                                   data=edgeCF)
+  
+  print(coxmeCF.reduced.control.d2)
+  
+  coxmeCF.reduced.control.d2d12 <- coxme(Surv(start, end, finish)~ strata(wall)+
+                                     zdeld2d12 +
+                                     (1|factorbirdid) + (1|factorsocial) + 
+                                     (1|factornatal),
+                                   data=edgeCF)
+  
+  print(coxmeCF.reduced.control.d2d12)
+}
