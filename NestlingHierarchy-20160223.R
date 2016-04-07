@@ -2802,36 +2802,23 @@ n.exclude2 <- unique(ar$natal[na2])
 # and brood ids 1366, 1368, and 1522.
 
 
-# these broods are (mostly) not in the current 'exclude' lists:
 
-n.exclude3 <- c(1366, 1368, 1522)
-s.exclude3 <- c(1366, 1368, 1522)
-
-# and I want to know the individuals' broods too:
-
-exclude.ids <- c(5342, 5344, 6283, 6284, 6285, 6286, 6287,
-                 6288, 6289, 6279, 6280, 6281, 6282, 6869, 
-                 6937, 6979, 6986, 6300, 6874)
-
-# which of these birds turn up in the data set and where:
-match(ar$birdid, exclude.ids)
-which(match(ar$birdid, exclude.ids)>0)
-# and in what broods:
-s.exclude4 <- ar$social[which(match(ar$birdid, exclude.ids)>0)]
-n.exclude4 <- ar$natal[which(match(ar$birdid, exclude.ids)>0)]
-
-length(unique(s.exclude4))
-length(unique(n.exclude4))
-length(unique(c(s.exclude4,n.exclude4)))
+# On 20160407, I have been through these broods, nestlings, and
+# genotypes. I checked for conflict in the genotypes and for missmatches
+# between the measurements just before and after we realised there was a
+# mix up. Nestlings 6286 and 6288 were mixed up, as were 6979 and 6986. 
+# All other nestlings were fine.
+# I have corrected both the raw data and the database.
 
 
-socialtoexclude <- unique(c(s.exclude, s.exclude2, s.exclude3, s.exclude4))
+
+socialtoexclude <- unique(c(s.exclude, s.exclude2))
 socialtoexclude
 length(socialtoexclude)
 # now 30 broods to exclude. Not bad. Not perfect.
 
 
-nataltoexclude <- unique(c(n.exclude, n.exclude2, n.exclude3, n.exclude4))
+nataltoexclude <- unique(c(n.exclude, n.exclude2))
 nataltoexclude
 length(nataltoexclude)
 # 34 natal broods.
