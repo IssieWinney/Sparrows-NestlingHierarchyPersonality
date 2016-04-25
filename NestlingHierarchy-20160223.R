@@ -1,5 +1,6 @@
 # Isabel Winney
 # 15th October 2015
+# query and database linked 25th April 2016
 
 # making a publication standard script for the analysis
 # of whether the nestling mass hierarchy or whether the
@@ -10,46 +11,153 @@
 # this is a shortened version of script makingdataset-mar2015.R
 # combined with addingend-mar2015-correctedfactorlevels-apr2015.R
 
-################################################################
+###############################################################################
+###############################################################################
 
-# read in the data:
+# Clear the workspace and load packages:
 
 rm(list=ls())
-setwd("C:/Users/Issie/SkyDrive/PhD/masterdatasheets")
 
-# nestling mass and tarsus data:
-nestmass <- read.table("nestling-d2d12May2014-plustarsusJan2015.txt",
-                       header=T)
+library(gtools)
+library(coxme)
+library(lattice)
+library(car)
+library(MCMCglmm)
+library(RODBC)
 
-head(nestmass)
-str(nestmass)
+###############################################################################
+###############################################################################
 
-# the age here is worked out as the capture date minus the
-# hatch date, so the nestlings that are measured on days 2
-# and 12 have 'ages' in this data set of 1 and 11.
+# link the database:
+sparrowDB <- odbcConnectAccess2007('C:\\Users\\Issie\\Dropbox\\Database0.75_20160420_AST\\SparrowDatabase0.75.accdb')
+
+
+# load in the data on nestling mass on day 2 and 12:
+{
+  nestlingd2d12 <- sqlQuery(sparrowDB,
+                          "SELECT tblCaptures.BirdID, 
+                              BirdBroodFosterBrood.natal, 
+                              BirdBroodFosterBrood.foster, 
+                              BirdBroodFosterBrood.hatchdate, 
+                              tblCaptures.CaptureDate, 
+                              tblCaptures.CaptureRef, 
+                              tblMeasurements.Mass, 
+                              tblMeasurements.Tarsus, 
+                              BirdBroodFosterBrood.DateEstimated, 
+                              [tblCaptures.CaptureDate]-[BirdBroodFosterBrood.hatchdate] AS age, 
+                              BirdBroodFosterBrood.DeathDate
+                          FROM    (tblCaptures 
+                          INNER JOIN (SELECT  tblBirdID.BirdID, tblBirdID.BroodRef AS natal,
+                              tblFosterBroods.FosterBrood AS foster, 
+                              tblBroodEvents.EventDate AS hatchdate, 
+                              tblBroodEvents.DateEstimated, 
+                              tblBirdID.DeathDate
+                              FROM  (tblBirdID LEFT JOIN tblBroodEvents ON tblBirdID.BroodRef = tblBroodEvents.BroodRef) 
+                              LEFT JOIN tblFosterBroods ON tblBirdID.BirdID = tblFosterBroods.BirdID
+                              WHERE (((tblBirdID.Cohort)>2010) AND ((tblBroodEvents.EventNumber)=1)) 
+                          ) AS BirdBroodFosterBrood 
+                          ON tblCaptures.BirdID = BirdBroodFosterBrood.BirdID) 
+                          INNER JOIN tblMeasurements ON tblCaptures.CaptureRef = tblMeasurements.CaptureRef
+                          WHERE (((tblCaptures.CaptureDate)>#4/1/2011#) 
+                          AND ((tblCaptures.Stage)=2) 
+                          AND (([tblCaptures.CaptureDate]-[BirdBroodFosterBrood.hatchdate])=1)) 
+                          OR ((([tblCaptures.CaptureDate]-[BirdBroodFosterBrood.hatchdate])=11))
+                          ORDER BY tblCaptures.BirdID;",
+                          na.strings="NA")
+}
+
+head(nestlingd2d12)
+
+###############################################################################
+###############################################################################
+
+# metadata:
+# BirdID        the ID of the nestling from the database
+# natal         the brood that the nestling was born in
+# foster        the brood that the nestling was cross-fostered to (NA if not fostered)
+# hatchdate     the date that the hatching brood was first observed hatching
+# CaptureDate   the date of the capture that the measurements refer to
+# CaptureRef    the ID of the capture that the measurements refer to
+# Mass          mass of the nestling at capture
+# Tarsus        tarsus length of the nestling at capture 
+# DateEstimated was the hatch date of the natal brood estimated?
+# age           the age of the brood at capture. NOTE the age here is worked out 
+#               as the capture date minus the hatch date, so the nestlings that
+#               are measured on days 2 and 12 have 'ages' in this data set of 1
+#               and 11.
+# DeathDate     date that the nestling was recorded dead (NA if not recorded)
+
+###############################################################################
+###############################################################################
+
 
 # a small number of nestlings were not measured for mass:
 
-which(is.na(nestmass$mass))
-length(which(is.na(nestmass$mass)))
-nestmass[which(is.na(nestmass$mass)),]
-# 17 cases where mass is missing.
+which(is.na(nestlingd2d12$Mass))
+length(which(is.na(nestlingd2d12$Mass)))
+nestlingd2d12[which(is.na(nestlingd2d12$Mass)),]
+# eight cases where mass is missing, but consider that this is
+# a query so no cases with everything missing will be included.
 
+# what about cases where we took mass on the day the nestling died?
+which(nestlingd2d12$DeathDate==nestlingd2d12$CaptureDate)
+nestlingd2d12[which(nestlingd2d12$DeathDate==nestlingd2d12$CaptureDate),]
+# the first three are on day 12 and are nestlings that were already
+# dead. They will not influence the analysis I am doing because these
+# broods are from early 2011, before any data was taken on nestling 
+# activity.
+# The following three are fieldwork accidents on day 2, so their mass
+# is relevant to the natal brood hierarchy but not to the social brood
+# hierarchy on this day. Therefore these nestlings will be included
+# in calculations of the natal brood hierarchy and not in calculations
+# of the social brood hierarchy.
+# The last two do not have mass measurements and are probably death 
+# captures, but will be excluded anyway from calculations of mean
+# brood mass on the grounds of having no mass.
+
+
+# what about cases where the nestling was measured more than once
+# on a day?
+# this code takes the data frame, groups data by bird ID and age, and returns
+# groups where more than one observation grouped together:
+nestlingd2d12 %>% group_by(BirdID, age) %>% filter(n()>1)
+
+# so there are three cases of duplicate measurements. In the first case
+# we had two measurements because the nestling was sampled twice (once from
+# the shell and once blood). The mass is the same in both cases. In the second
+# case we returned to the broods on realising there was a cross-fostering mix-up
+# and re-sampled and re-weighed the nestlings. In these two cases, the lighter
+# mass is the one taken first that we want to keep, being the mass that matches 
+# with most other measurements.
+# so pull out the rownames:
+toremove <- c(6636, 6979, 6986)
+
+nestlingd2d12[nestlingd2d12$BirdID %in% toremove,]
+
+# remove 1172, 1588, 1602.
+
+nestlingsinglemeasures <- nestlingd2d12[-c(1172, 1588, 1602),]
+nestlingsinglemeasures[nestlingsinglemeasures$BirdID %in% toremove,]
+
+# righty ho.
+
+# returning to the database, the nestlings measured on day 11
+# 
 
 # create full subsets for each age, 
 # but MINUS THOSE WITHOUT MASS so that these individuals
 # are not considered in calculations of the mean brood
 # mass
-nestmass$one <- 1
-head(nestmass)
+nestlingd2d12$one <- 1
+head(nestlingd2d12)
 
-nestmassNA <- nestmass[-which(is.na(nestmass$mass)),]
-which(is.na(nestmassNA$mass))
-summary(nestmassNA)
+nestlingd2d12NA <- nestlingd2d12[-which(is.na(nestlingd2d12$mass)),]
+which(is.na(nestlingd2d12NA$mass))
+summary(nestlingd2d12NA)
 
-massd2 <- subset(nestmassNA, nestmassNA$age==1)
+massd2 <- subset(nestlingd2d12NA, nestlingd2d12NA$age==1)
 
-massd12 <- subset(nestmassNA, nestmassNA$age==11)
+massd12 <- subset(nestlingd2d12NA, nestlingd2d12NA$age==11)
 
 head(massd2)
 head(massd12)
@@ -437,19 +545,19 @@ str(ar123m12)
 
 # are the social and natal broods in my arena data set the
 # same as the ones in the mass data set?
-head(nestmass)
+head(nestlingd2d12)
 
-ar$natal2 <- nestmass$natal[match(ar$birdid, nestmass$birdid)]
+ar$natal2 <- nestlingd2d12$natal[match(ar$birdid, nestlingd2d12$birdid)]
 summary(ar$natal2-ar$natal)
 
-ar$social2 <- nestmass$social[match(ar$birdid, nestmass$birdid)]
+ar$social2 <- nestlingd2d12$social[match(ar$birdid, nestlingd2d12$birdid)]
 summary(ar$social2-ar$social)
 
 # well, that is one relief. Those brood IDs are right.
 
 summary(ar)
 # though six nestlings (or one nestling and its mass) are missing
-# from the nestmass data set.
+# from the nestlingd2d12 data set.
 
 #######################################################################
 
@@ -1044,7 +1152,7 @@ summary(edgesingle)
 # and for the delta hierarchies, make categories
 # so that I can compare continuous with factor fits:
 
-library(gtools)
+
 
 # four
 edgesingle$catnatd2 <- quantcut(edgesingle$d2deltanat, seq(0,1,1/4))
@@ -1113,7 +1221,7 @@ edgesingle$zd2mass <- scale(edgesingle$d2mass)
 # this is done in coxph because there are no repeated
 # measures - I am just focussing on fixed effects
 
-library(coxme)
+
 
 model1 <- coxph(Surv(start, end, finish)~catnatd2+
                    strata(wall), 
@@ -1531,7 +1639,7 @@ plot(jitter(edgeall$wd1to3), log(edgeall$end))
 # check for collinearity
 # I know cohort and releaser have some
 # correlations that I cannot change
-library(lattice)
+
 
 
 # take the single measures data set with one
@@ -1592,7 +1700,6 @@ cor(edgecfYe$deld2d12, edgecfYe$d12mass)
 # paper. This can be done in package car 
 # for linear models:
 
-library(car)
 
 vif(glm(end~wall+d2deltasoc*d12deltasoc + d12mass + residmass +
           d2mass + socbroodsz + noise + wd1to3 + endprob + time + I(time^2) +
@@ -2986,7 +3093,7 @@ print(coxmeCF.maternal.conservative)
 
 # as Gaussian:
 {
-  library(MCMCglmm)
+  
   
   # make factors for analysis:
   
