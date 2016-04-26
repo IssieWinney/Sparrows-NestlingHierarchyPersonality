@@ -68,6 +68,58 @@ sparrowDB <- odbcConnectAccess2007('C:\\Users\\Issie\\Dropbox\\Database0.75_2016
 
 head(nestlingd2d12)
 
+
+
+# make a SOCIAL brood. This is the brood that the nestling was reared
+# in, whether cross-fostered or not.
+nestlingd2d12$social <- with(nestlingd2d12, ifelse(is.na(foster), natal, foster))
+
+# did it work as intended?
+head(nestlingd2d12)
+tail(nestlingd2d12)
+nestlingd2d12[2010:2020,]
+# looks like it. Good.
+
+
+
+# I want to know the cross-foster status of my nestlings
+# so, select all nestlings from 2011 (have a brood ref),
+# where we know the hatch date, and that were not chiggs or
+# eggs (LastStage >1)
+
+nestlings2011to15 <- sqlQuery(sparrowDB,
+                              "SELECT   tblBirdID.BirdID, 
+                                        tblBirdID.BroodRef AS natal, 
+                                        tblFosterBroods.FosterBrood AS foster, 
+                                        tblBroodEvents.EventDate AS hatchdate, 
+                                        tblBroodEvents.DateEstimated, 
+                                        tblBirdID.DeathDate
+                              FROM (tblBirdID 
+                              LEFT JOIN tblBroodEvents ON tblBirdID.BroodRef = tblBroodEvents.BroodRef) 
+                              LEFT JOIN tblFosterBroods ON tblBirdID.BirdID = tblFosterBroods.BirdID
+                              WHERE (((tblBirdID.Cohort)>2010) 
+                              AND ((tblBroodEvents.EventNumber)=1)
+                              AND ((tblBirdID.LastStage)>1));",
+                              na.strings="NA")
+
+head(nestlings2011to15)
+summary(nestlings2011to15)
+
+# age at death
+nestlings2011to15$age <- as.numeric((nestlings2011to15$DeathDate - nestlings2011to15$hatchdate)/86400)
+
+# social brood:
+
+nestlings2011to15$social <- with(nestlings2011to15, ifelse(is.na(foster), natal, foster))
+summary(nestlings2011to15)
+nestlings2011to15[2000:2010,]
+# good
+
+# close the database:
+
+close(sparrowDB)
+
+
 ###############################################################################
 ###############################################################################
 
@@ -99,21 +151,6 @@ nestlingd2d12[which(is.na(nestlingd2d12$Mass)),]
 # eight cases where mass is missing, but consider that this is
 # a query so no cases with everything missing will be included.
 
-# what about cases where we took mass on the day the nestling died?
-which(nestlingd2d12$DeathDate==nestlingd2d12$CaptureDate)
-nestlingd2d12[which(nestlingd2d12$DeathDate==nestlingd2d12$CaptureDate),]
-# the first three are on day 12 and are nestlings that were already
-# dead. They will not influence the analysis I am doing because these
-# broods are from early 2011, before any data was taken on nestling 
-# activity.
-# The following three are fieldwork accidents on day 2, so their mass
-# is relevant to the natal brood hierarchy but not to the social brood
-# hierarchy on this day. Therefore these nestlings will be included
-# in calculations of the natal brood hierarchy and not in calculations
-# of the social brood hierarchy.
-# The last two do not have mass measurements and are probably death 
-# captures, but will be excluded anyway from calculations of mean
-# brood mass on the grounds of having no mass.
 
 
 # what about cases where the nestling was measured more than once
@@ -141,18 +178,14 @@ nestlingsinglemeasures[nestlingsinglemeasures$BirdID %in% toremove,]
 
 # righty ho.
 
-# returning to the database, the nestlings measured on day 11
-# 
-
 # create full subsets for each age, 
 # but MINUS THOSE WITHOUT MASS so that these individuals
 # are not considered in calculations of the mean brood
 # mass
-nestlingd2d12$one <- 1
 head(nestlingd2d12)
 
-nestlingd2d12NA <- nestlingd2d12[-which(is.na(nestlingd2d12$mass)),]
-which(is.na(nestlingd2d12NA$mass))
+nestlingd2d12NA <- nestlingd2d12[-which(is.na(nestlingd2d12$Mass)),]
+which(is.na(nestlingd2d12NA$Mass))
 summary(nestlingd2d12NA)
 
 massd2 <- subset(nestlingd2d12NA, nestlingd2d12NA$age==1)
@@ -163,41 +196,38 @@ head(massd2)
 head(massd12)
 
 
-# are there any repeat measures?
-table(table(massd2$birdid))
-table(table(massd12$birdid))
-# nope
+# remember repeated measures have already been removed.
+
 
 # how many tarsus measurements am I missing?
-length(which(is.na(massd12$tarsus)))
-# 23. Quite a few more but not terrible. I was
-# expecting far more to be missing...
+length(which(is.na(massd12$Tarsus)))
+# 28. Quite a few but not bad.
 
 
 
 # are any nestlings dead when measured?
+# what about cases where we took mass on the day the nestling died?
+which(nestlingd2d12$DeathDate==nestlingd2d12$CaptureDate)
+nestlingd2d12[which(nestlingd2d12$DeathDate==nestlingd2d12$CaptureDate),]
+# the first three are on day 12 and are nestlings that were already
+# dead. They will not influence the analysis I am doing because these
+# broods are from early 2011, before any data was taken on nestling 
+# activity.
+# The following three are fieldwork accidents on day 2, so their mass
+# is relevant to the natal brood hierarchy but not to the social brood
+# hierarchy on this day. Therefore these nestlings will be included
+# in calculations of the natal brood hierarchy and not in calculations
+# of the social brood hierarchy.
+# The last two do not have mass measurements and are probably death 
+# captures, but will be automatically excluded from calculations of mean
+# brood mass on the grounds of having no mass.
 
-which(massd2$capturedate==massd2$deathdate)
-which(massd12$capturedate==massd12$deathdate)
 
-# three day 2s. Look in more detail:
-
-massd2[which(massd2$capturedate==massd2$deathdate),]
-
-# looking at the database, all three of these nestlings died
-# due to accidents at measuring.
-# now do I exclude these nestlings or not?
-# go to the database. All of these nestlings died
-# on the day of capture due to observer accidents.
-# Therefore, they are relevant to the natal hierarchy
-# on day 2. They  aren't relevant to the social hierarchy 
-# on day 2.
-
-# make a subset that excludes them for the calculation of the
+# make a subset that excludes these day 2 nestlings for the calculation of the
 # mean social brood mass, but use the original data set for the
 # calculation of the natal brood mass:
 
-massd2minusdead <- massd2[-which(massd2$capturedate==massd2$deathdate),]
+massd2minusdead <- massd2[-which(massd2$CaptureDate==massd2$DeathDate),]
 summary(massd2minusdead)
 summary(massd2)
 length(massd2minusdead[,1])
@@ -209,12 +239,16 @@ which(massd2minusdead$birdid==1595)
 # and minima for mass are the same, and the three
 # birds I wanted removed are not in the data set :)
 
+# the day 11 measurements where mass is of a dead nestling are not
+# relevant to the analysis I do here and so are left in the data set.
+
+
 
 # now I need the mean mass
 # first on day 2:
 
 # mass of the natal brood
-natald2 <- tapply(massd2$mass, INDEX=massd2$natal, FUN=mean)
+natald2 <- tapply(massd2$Mass, INDEX=massd2$natal, FUN=mean)
 head(natald2)
 
 nam <- as.data.frame(names(natald2))
@@ -228,7 +262,7 @@ head(d2natal)
 # update 14th March 2015 - this uses the social
 # brood masses minus the nestlings that died during
 # measurements
-sociald2 <- tapply(massd2minusdead$mass, INDEX=massd2minusdead$social, FUN=mean)
+sociald2 <- tapply(massd2minusdead$Mass, INDEX=massd2minusdead$social, FUN=mean)
 head(sociald2)
 
 nam <- as.data.frame(names(sociald2))
@@ -239,7 +273,7 @@ names(d2social) <- c("social", "meand2")
 head(d2social)
 
 # then day 12
-natald12 <- tapply(massd12$mass, INDEX=massd12$natal, FUN=mean)
+natald12 <- tapply(massd12$Mass, INDEX=massd12$natal, FUN=mean)
 head(natald12)
 
 nam <- as.data.frame(names(natald12))
@@ -250,7 +284,7 @@ names(d12natal) <- c("natal", "meand12")
 head(d12natal)
 
 # social d12
-sociald12 <- tapply(massd12$mass, INDEX=massd12$social, FUN=mean)
+sociald12 <- tapply(massd12$Mass, INDEX=massd12$social, FUN=mean)
 head(sociald12)
 
 nam <- as.data.frame(names(sociald12))
@@ -267,6 +301,13 @@ head(d12social)
 # edge measures in the analysis
 # ar <- read.table("AR-jan2015.txt", header=T)
 
+### 25th April 2016 ###
+# now I also know that there were differences in how the videos were watched
+# between 2011-12 and 13. The result is these 'to edge' measures probably do
+# not match the tests they were added to: tests from 2011 and the first half
+# of 2012. It is a small number of tests overall, only those where the nestling
+# went immediately to the edge, but it is enough to be very annoying!
+
 # due to corrections for the mass of five nestlings on
 # 16th October 2015 (see notes below) the data set was
 # updated:
@@ -275,7 +316,7 @@ ar <- read.table("AR-oct2015-d12masscorrected-wdordercorrected.txt", header=T)
 head(ar)
 str(ar)
 
-ar$d2mass <- massd2$mass[match(ar$birdid, massd2$birdid)]
+ar$d2mass <- massd2$Mass[match(ar$birdid, massd2$BirdID)]
 
 summary(ar$d2mass)
 
@@ -304,7 +345,7 @@ ar$d2deltasoc <- ar$d2mass - ar$d2socialmean
 ar$d12deltanat <- ar$mass - ar$d12natalmean
 ar$d12deltasoc <- ar$mass - ar$d12socialmean
 
-
+summary(ar)
 
 # I want to know the cross-foster status of my nestlings
 
@@ -313,39 +354,44 @@ ar$d12deltasoc <- ar$mass - ar$d12socialmean
 # each year from 2011-2015 that were of stage 2 or 3 when
 # last seen i.e. no chigg or egg:
 
-nestlings2011to15 <- read.table("nestlings2011-15-lastseenstage2or3-20151022.txt", 
-                   header=T)
+# this is the original data frame:
+# nestlings2011to15 <- read.table("nestlings2011-15-lastseenstage2or3-20151022.txt", 
+#                    header=T)
+# which has been replaced with a query that gives table nestlings2011to15
 
 head(nestlings2011to15)
 summary(nestlings2011to15)
-# some broods do not have a hatch date. These broods were
-# first found with well developed nestlings.
+nestlings2011to15$hatchdate
+# all nestlings have a hatch date: this is a condition of being included in this data set.
 
 # remove nestlings that died on day 2:
-which(nestlings2011to15$AgeAtDeath==0)
+which(nestlings2011to15$age==1) # I think there was an error in the script here before
+# where I removed individuals with age at death == 0, whereas age at death == 1 would be
+# more appropriate. These 1's would be nestlings recorded as dead on day 2.
 
-nestlingsalive <- nestlings2011to15[-which(nestlings2011to15$AgeAtDeath==0),]
+nestlingsalive <- nestlings2011to15[-which(nestlings2011to15$age<2),]
 summary(nestlingsalive)
 length(nestlingsalive[,1])
 length(nestlings2011to15[,1])
 
-# so those five nestlings have been removed.
+
 
 # now, who was cross-fostered?
 
-nestlingsalive$fostered <- nestlingsalive$BroodRef!=nestlingsalive$RearingBrood
+nestlingsalive$fostered <- nestlingsalive$natal!=nestlingsalive$foster
 head(nestlingsalive)
+nestlingsalive$fostered[is.na(nestlingsalive$fostered)] <- FALSE
 table(nestlingsalive$fostered)
 
 # all those with FALSE for this should have 
 # a foster brood of NA
-table(nestlingsalive$fostered[which(is.na(nestlingsalive$FosterBrood))])
+table(nestlingsalive$fostered[which(is.na(nestlingsalive$foster))])
 
 # and all those with TRUE should have a brood
-table(nestlingsalive$fostered[which(nestlingsalive$FosterBrood>0)])
+table(nestlingsalive$fostered[which(nestlingsalive$foster>0)])
 
 length(nestlingsalive[,1])
-1165+1174
+1101+1174
 # excellent. All present and accounted for.
 
 # so, all those with TRUE are fostered and all those with
@@ -358,7 +404,7 @@ table(nestlingsalive$fos, nestlingsalive$fostered)
 # a REARING brood were cross-fostered:
 
 fostd <- aggregate(nestlingsalive$fos, 
-                   list(nestlingsalive$RearingBrood),
+                   list(nestlingsalive$social),
                    FUN=mean)
 
 head(fostd)
@@ -387,16 +433,28 @@ ar$FPLN <- FPLN$FPLN[match(ar$birdid, FPLN$BirdID)]
 table(ar$FN, ar$FPLN)
 
 # wow. Yes, it is. So I can use either :D
-# duh, of course it is even for that one nestling
-# that has the same foster as rearing because that
-# nestling has been found and measured in its
-# rearing brood despite being suspected of being
-# cross-fostered it is not possible to say which
-# nestling it was...
 
 table(ar$FPLN)
 table(ar$FPLN, ar$cf)
 table(ar$FN, ar$cf)
+
+# check whether the social and natal broods in the data frame are the same
+# as those in the database:
+nestlings2011to15$natal[match(ar$birdid, nestlings2011to15$BirdID)]
+ar$natal[match(nestlings2011to15$BirdID, ar$birdid)] # there is no unique match 
+# here, is this the reason for the problem? No, it is because there are more 
+# nestlings in the 2011 to 15 data set than are in the ar data set.
+nestlings2011to15$natal2 <- ar$natal[match(nestlings2011to15$BirdID, ar$birdid)]
+summary(nestlings2011to15$natal - nestlings2011to15$natal2) #all the natal broods are the same
+nestlings2011to15$social2 <- ar$social[match(nestlings2011to15$BirdID, ar$birdid)]
+summary(nestlings2011to15$social - nestlings2011to15$social2) #all the social broods are the same
+
+# IMPORTANT: there used to be one nestling (CL0046) that was NOT FOSTERED
+# according to the original data sheet but was FOSTERED at the time when
+# the FPLN data was extracted.
+# This is because of a field work mix-up, and all field-work
+# mix-ups in 2011-13 have since been checked WRT the genetics of the
+# nestling and resolved.
 
 # who are the three that don't match the pattern?
 
@@ -404,42 +462,6 @@ ar$cf[which(ar$FPLN=="F")] # so it is the 43:45 matches
 which(ar$FPLN=="F")
 
 ar[246:252,]
-
-# er, what? 
-# oh. Oh dear. Well, this is difficult. This individual
-# is a result of a fieldwork mix-up where we cross-fostered
-# two nests but cut all the wrong nails, and in the end
-# do not know who we cross-fostered where. In effect, I
-# have no clear idea where this nestling was from, but
-# we meant to cross-foster the broods. I am still unclear
-# which nestling came from where --> maybe try removing
-# broods 1366 and 1368 from the final analysis because
-# of uncertainty in who is who?
-# Same applies to a brood in 2013 where we mixed them 
-# all up (brood 1522). I can't remember others off the 
-# top of my head.
-# ok, so I went through all the notes of nestling captures
-# from 2011-2013 and wrote down a full list of nestlings
-# where the notes said to check the nestling's true
-# identity. Most of these should be ok but I could
-# run an analysis that does not have them to check.
-# these nestlings are:
-
-# 5342, 5344, 6283, 6284, 6285, 6286, 6287, 6288, 6289,
-# 6279, 6280, 6281, 6282, 6869, 6937, 6979, 6986.
-# on top of this, broods L009, L011, and M064, which
-# includes brood ids 1366, 1368, and 1522.
-# and I have also gone through all the brood forms to
-# view any general notes and found the following extra
-# nestlings that could be mixed up:
-# 6300, 6874.
-
-# so, checked in three ways. One, broods that I remembered
-# as mix-ups. Two, going through all nestling capture notes
-# from 2011-2013. Three, going through all offspring notes
-# for broods from 2011-2013 by going to broods --> offspring
-# in the data base.
-
 
 
 # get myself a minedge. This is how far nestlings move
