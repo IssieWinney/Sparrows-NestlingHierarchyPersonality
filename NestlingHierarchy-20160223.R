@@ -501,13 +501,7 @@ ar12$d12masscheck <- as.numeric(format(massd12$Mass[match(ar12$birdid, massd12$B
 # 16th October 2015 - this should now come out with no
 # differences because I corrected the data set as per
 # notes below:
-
-summary(ar12$mass - ar12$d12masscheck)
-# some are different. Which?
-
-length(which(ar12$mass - ar12$d12masscheck != 0))
-ar12[which(ar12$mass - ar12$d12masscheck !=0),]
-# five birds. CM0022, CM0050, CM0380, CM0382, and
+# CM0022, CM0050, CM0380, CM0382, and
 # CM0526. All these birds had a mass that was out
 # by a little (up to 3.5 g).
 # So on 16th October 2015 these masses were corrected
