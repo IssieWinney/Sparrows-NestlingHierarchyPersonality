@@ -311,7 +311,10 @@ head(d12social)
 # due to corrections for the mass of five nestlings on
 # 16th October 2015 (see notes below) the data set was
 # updated:
-ar <- read.table("AR-oct2015-d12masscorrected-wdordercorrected.txt", header=T)
+# and in April 2016, I was able to check all potential cross-fostering errors
+# against the genetic identity of each nestling, and swapped CM0326 and CM0333
+# which were found to be the only errors.
+ar <- read.table("AR-apr2016-cm0333and326switched.txt", header=T)
 
 head(ar)
 str(ar)
@@ -438,6 +441,24 @@ table(ar$FPLN)
 table(ar$FPLN, ar$cf)
 table(ar$FN, ar$cf)
 
+
+# but actually, here there are three data points that do not segregate
+# properly:
+
+# who are the three that don't match the pattern?
+
+ar$cf[which(ar$FPLN=="F")] # so it is the 43:45 matches
+which(ar$FPLN=="F")
+
+ar[246:252,]
+# so. FPLN is reliable in all cases except this one, where this nestling
+# should be an L not an F. FN is reliable (it only marks whether a portion
+# of the brood was cross-fostered (F) or not (N)). cf is reliable as well. It
+# marks whether an individual nestling was cross-fostered (f) or not (n).
+# This does not matter for later when I mark out non-fostered broods from
+# the rest, but should be bourne in mind for future analyses.
+
+
 # check whether the social and natal broods in the data frame are the same
 # as those in the database:
 nestlings2011to15$natal[match(ar$birdid, nestlings2011to15$BirdID)]
@@ -456,12 +477,6 @@ summary(nestlings2011to15$social - nestlings2011to15$social2) #all the social br
 # mix-ups in 2011-13 have since been checked WRT the genetics of the
 # nestling and resolved.
 
-# who are the three that don't match the pattern?
-
-ar$cf[which(ar$FPLN=="F")] # so it is the 43:45 matches
-which(ar$FPLN=="F")
-
-ar[246:252,]
 
 
 # get myself a minedge. This is how far nestlings move
@@ -481,7 +496,7 @@ ar12 <- subset(ar, ar$age==12)
 
 head(massd12)
 
-ar12$d12masscheck <- massd12$mass[match(ar12$birdid, massd12$birdid)]
+ar12$d12masscheck <- as.numeric(format(massd12$Mass[match(ar12$birdid, massd12$BirdID)], digits=3))
 
 # 16th October 2015 - this should now come out with no
 # differences because I corrected the data set as per
