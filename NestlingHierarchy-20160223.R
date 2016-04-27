@@ -115,6 +115,25 @@ summary(nestlings2011to15)
 nestlings2011to15[2000:2010,]
 # good
 
+
+
+# here, I want the social parents of an individual:
+{
+  parents <- sqlQuery(sparrowDB,
+                    "SELECT tblBroods.BroodRef, 
+                    tblBroods.BroodName, 
+                    tblBroods.NestboxRef,
+                    tblBroods.SocialDadID, 
+                    tblBroods.SocialMumID
+                    FROM tblBroods;",
+                    na.strings="NA")
+}
+
+head(parents)
+summary(parents)
+
+
+
 # close the database:
 
 close(sparrowDB)
@@ -314,7 +333,7 @@ head(d12social)
 # and in April 2016, I was able to check all potential cross-fostering errors
 # against the genetic identity of each nestling, and swapped CM0326 and CM0333
 # which were found to be the only errors.
-ar <- read.table("AR-apr2016-cm0333and326switched.txt", header=T)
+ar <- read.table("C:/Users/Issie/SkyDrive/PhD/masterdatasheets/AR-apr2016-cm0333and326switched.txt", header=T)
 
 head(ar)
 str(ar)
@@ -405,7 +424,8 @@ table(nestlingsalive$fos, nestlingsalive$fostered)
 
 # and now I can ask what proportion of nestlings in 
 # a REARING brood were cross-fostered:
-
+# This is because I want to know if a nestling is REARED in a
+# cross-foster brood.
 fostd <- aggregate(nestlingsalive$fos, 
                    list(nestlingsalive$social),
                    FUN=mean)
@@ -431,14 +451,14 @@ FPLN <- read.table("FPLN-May2014.txt", header=T)
 head(FPLN)
 str(FPLN)
 
-ar$FPLN <- FPLN$FPLN[match(ar$birdid, FPLN$BirdID)]
+ar$FPLN2 <- FPLN$FPLN[match(ar$birdid, FPLN$BirdID)]
 
-table(ar$FN, ar$FPLN)
+table(ar$FN, ar$FPLN2)
 
 # wow. Yes, it is. So I can use either :D
 
-table(ar$FPLN)
-table(ar$FPLN, ar$cf)
+table(ar$FPLN2)
+table(ar$FPLN2, ar$cf)
 table(ar$FN, ar$cf)
 
 
@@ -447,16 +467,39 @@ table(ar$FN, ar$cf)
 
 # who are the three that don't match the pattern?
 
-ar$cf[which(ar$FPLN=="F")] # so it is the 43:45 matches
-which(ar$FPLN=="F")
+ar$cf[which(ar$FPLN2=="F")] # so it is the 43:45 matches
+which(ar$FPLN2=="F")
 
 ar[246:252,]
-# so. FPLN is reliable in all cases except this one, where this nestling
+# so. FPLN2 is reliable in all cases except this one, where this nestling
 # should be an L not an F. FN is reliable (it only marks whether a portion
 # of the brood was cross-fostered (F) or not (N)). cf is reliable as well. It
 # marks whether an individual nestling was cross-fostered (f) or not (n).
 # This does not matter for later when I mark out non-fostered broods from
 # the rest, but should be bourne in mind for future analyses.
+
+# Why not make FPLN from the data set? Then it will be correct
+table(ar$FN, ar$cf)
+fostd$FPN <- ifelse(fostd$x>0.99, "F", ifelse(fostd$x<0.01, "N", "P"))
+table(fostd$FN, fostd$FPN)
+fostd
+
+nestlingsalive$FPN <- fostd$FPN[match(nestlingsalive$social, fostd$Group.1)]
+head(nestlingsalive)
+
+nestlingsalive$FPLN <- ifelse(nestlingsalive$FPN=="P",
+                              ifelse(nestlingsalive$fostered==TRUE, "P", "L"), 
+                              nestlingsalive$FPN)
+
+ar$FPLN <- nestlingsalive$FPLN[match(ar$birdid, nestlingsalive$BirdID)]
+
+table(ar$FPLN, ar$cf)
+
+# so now I can trust FPLN
+
+####
+
+
 
 
 # check whether the social and natal broods in the data frame are the same
@@ -535,7 +578,7 @@ table(ar12$cf, ar12$FPLN)
 
 # add tarsus measurements:
 
-ar12$tarsus <- massd12$tarsus[match(ar12$birdid, massd12$birdid)]
+ar12$tarsus <- massd12$Tarsus[match(ar12$birdid, massd12$BirdID)]
 summary(ar12$tarsus)
 
 # in this subset, how many am I missing tarsus for?
@@ -578,17 +621,24 @@ str(ar123m12)
 # same as the ones in the mass data set?
 head(nestlingd2d12)
 
-ar$natal2 <- nestlingd2d12$natal[match(ar$birdid, nestlingd2d12$birdid)]
+ar$natal2 <- nestlingd2d12$natal[match(ar$birdid, nestlingd2d12$BirdID)]
 summary(ar$natal2-ar$natal)
 
-ar$social2 <- nestlingd2d12$social[match(ar$birdid, nestlingd2d12$birdid)]
+ar$social2 <- nestlingd2d12$social[match(ar$birdid, nestlingd2d12$BirdID)]
 summary(ar$social2-ar$social)
 
-# well, that is one relief. Those brood IDs are right.
+ar[which(is.na(ar$natal2)),]
+
+# how do I get six data points with missing broods?
+# Well, the two nestlings in question were measured on day 10 only. The
+# query that pulls out captures only includes day 2 and 12 measurements.
+# Any nestling missing those measurements is not included in the query,
+# and that includes these two nestlings. That is not a problem however
+# since these nestlings do not have day 12 arena measurements.
+
+# all other brood IDs match correctly.
 
 summary(ar)
-# though six nestlings (or one nestling and its mass) are missing
-# from the nestlingd2d12 data set.
 
 #######################################################################
 
@@ -649,49 +699,6 @@ plot(ar123m12tarsus$tarsus, log(ar123m12tarsus$total+0.5))
 
 
 
-###################################################################
-
-###################################################################
-# I need to know certain numbers for writing in my
-# paper.
-# How many nestlings am I missing day 2 mass for?
-
-
-ardu <- subset(ar123m12tarsus, ar123m12tarsus$birddupl==F)
-summary(ardu$d2mass)
-summary(ardu$mass)
-summary(ardu$tarsus)
-summary(ardu)
-# interestingly, wd1to3 are all ones :) nice check that this
-# works
-table(ar123m12tarsus$wd1to3)
-table(ardu$wd1to3)
-
-ardu$deld2 <- ardu$d2deltasoc - ardu$d2deltanat
-
-# make CF4. The purpose of this is to separate those non-
-# fostered nestlings in non-fostered nests from the rest
-# who were affected by the manipulation in some way, and 
-# then amongst those who were affected, sort out which
-# of them moved place in the competitive hierarchy:
-
-table(ardu$crossF, ardu$FPLN)
-
-ardu$CFN <- ifelse(ardu$FPLN=="N",
-                       "N", ifelse(ardu$deld2==0,
-                                   "cfN", "cfY"))
-
-table(ardu$CFN)
-
-
-plot(ardu$tarsus, ardu$total, log="y")
-plot(ardu$mass, ardu$total, log="y")
-plot(ardu$residmass, ardu$total, log="y")
-
-summary(ardu$d2mass + ardu$mass)
-table(ardu$CF4, ardu$FPLN)
-
-
 # I want to account for the nestlings moving further to
 # reach a favoured square to finish on:
 
@@ -719,6 +726,52 @@ plot(jitter(ar123m12tarsus$endprob, amount=0.005),
 # that makes sense both if they aim for the popular squares
 # and if unpopular squares are more likely to be faced by
 # only nestlings that fail to move...
+
+
+
+###################################################################
+
+###################################################################
+# I need to know certain numbers for writing in my
+# paper.
+# How many nestlings am I missing day 2 mass for?
+
+
+ardu <- subset(ar123m12tarsus, ar123m12tarsus$birddupl==F)
+summary(ardu$d2mass)
+summary(ardu$mass)
+summary(ardu$tarsus)
+summary(ardu)
+# interestingly, wd1to3 are all ones :) nice check that this
+# works
+table(ar123m12tarsus$wd1to3)
+table(ardu$wd1to3)
+
+ardu$deld2 <- ardu$d2deltasoc - ardu$d2deltanat
+
+# make CFN. The purpose of this is to separate those non-
+# fostered nestlings in non-fostered nests from the rest
+# who were affected by the manipulation in some way, and 
+# then amongst those who were affected, sort out which
+# of them moved place in the competitive hierarchy:
+
+table(ardu$crossF, ardu$FPLN)
+
+ardu$CFN <- ifelse(ardu$FPLN=="N",
+                       "N", ifelse(ardu$deld2==0,
+                                   "cfN", "cfY"))
+
+table(ardu$CFN)
+
+
+plot(ardu$tarsus, ardu$total, log="y")
+plot(ardu$mass, ardu$total, log="y")
+plot(ardu$residmass, ardu$total, log="y")
+
+summary(ardu$d2mass + ardu$mass)
+table(ardu$CFN, ardu$FPLN)
+
+
 
 str(ar123m12tarsus)
 # make the hierarchies in to simple numeric rather than
@@ -1107,8 +1160,6 @@ edgecfYe$factornatal <- as.factor(edgecfYe$natal)
 # mother that changes an offspring's behaviour. Therefore,
 # add the social mother to the data set:
 
-
-parents <- read.table("brood-parent-july2014-myDBparents.txt", header=T)
 head(parents)
 str(parents)
 summary(parents)
@@ -1150,7 +1201,7 @@ head(edgecfYe$factormum)
 
 which(parents$BroodRef==1359)
 parents[1355,]
-edgecfYe$socialmother[1]
+edgecfYe$natalmother[1]
 
 
 
@@ -1874,6 +1925,12 @@ check1.1 <- coxph(Surv(start, end, finish)~ strata(wall)+
                   data=edgeall)
 check1.1z <- cox.zph(check1.1)
 check1.1z
+plot(check1.1z[1])
+plot(check1.1z[2])
+plot(check1.1z[3])
+plot(check1.1z[4])
+plot(check1.1z[5])
+plot(check1.1z[6])
 
 # amazingly good residuals
 
@@ -1932,7 +1989,7 @@ print(coxme1.reduced)
 anova(coxme1.reduced)
 # anova interesting, but not useful for significnce
 # report in this case.
-# model chisq is 363.25
+# model chisq is 362.64
 
 # how is the model fitting progressing:
 
@@ -1961,9 +2018,9 @@ coxme1.reduced.b <- coxme(Surv(start, end, finish)~ strata(wall)+
                         data=edgeall)
 
 print(coxme1.reduced.b)
-# model chisq 247.28
+# model chisq 247.91
 # difference between this and full model:
-363.25-247.28
+362.64-247.28
 
 # knock out social brood id
 coxme1.reduced.s <- coxme(Surv(start, end, finish)~ strata(wall)+
@@ -1973,9 +2030,9 @@ coxme1.reduced.s <- coxme(Surv(start, end, finish)~ strata(wall)+
                         data=edgeall)
 
 print(coxme1.reduced.s)
-# chisq 329.42
+# chisq 327.39
 # difference between this and full model:
-363.25-329.42
+362.64-327.39
 
 # or as an equation to calculate the chisq from the models:
 2*(coxme1.reduced$loglik[1:2] - coxme1.reduced.b$loglik[1:2])
@@ -2056,8 +2113,57 @@ approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
 
 approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
 
+#############################################################
+#############################################################
 
+# diversion on 20160427
+# Ideally, I would account for repeated measurements of an
+# individual with a random slope. This can't be included as 
+# a factor because individuals are not repeatedly measured
+# for each level. So it must be in as continuous.
+# This is to see whether the results remain stable with the
+# alternative specification
 
+edgeall$zwd1to3 <- scale(edgeall$wd1to3, scale=T, center=T)
+
+head(edgeall)
+str(edgeall)
+
+coxme1.full.randoexperiment1 <- coxme(Surv(start, end, finish)~ strata(wall)+
+                       zd2deltasoc*zd12deltasoc + CFN+ 
+                       zd12mass + zd2mass + zresidmass +
+                       location + noise + zwd1to3 +
+                       factorcohort + releaser + ztime + zendprob +
+                       (zwd1to3|factorbirdid) + (1|factorbirdid) +
+                         (1|factorsocial),
+                     data=edgeall)
+
+print(coxme1.full.randoexperiment1)
+# ok. This is a nice confirmation. The random slope of order
+# of testing hardly accounts for variance. This can either be
+# a lack of a slope per individual, or a lack of power to 
+# quantify individual random slopes. However, note the conclusions
+# of the fixed effects would be the same either way. I am happy to 
+# include test order as a fixed effect for now since the model is
+# already near its limit with the random intercepts.
+
+# for completeness, if the individual intercepts were not estimated
+# separately but intstead were estimated only with the slopes:
+
+coxme1.full.randoexperiment2 <- coxme(Surv(start, end, finish)~ strata(wall)+
+                                        zd2deltasoc*zd12deltasoc + CFN+ 
+                                        zd12mass + zd2mass + zresidmass +
+                                        location + noise + zwd1to3 +
+                                        factorcohort + releaser + ztime + zendprob +
+                                        (zwd1to3|factorbirdid) + (1|factorsocial),
+                                      data=edgeall)
+
+print(coxme1.full.randoexperiment2)
+# again we see very little variance partitoned to the slope.
+# I am comfortable not including the random slopes for this.
+
+#############################################################
+#############################################################
 
 
 # and now the full model:
