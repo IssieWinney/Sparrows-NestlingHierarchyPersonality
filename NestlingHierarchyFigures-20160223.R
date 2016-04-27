@@ -342,6 +342,14 @@ head(survdata2)
    
   plot(ardu$d12mass, jitter(ardu$total), log="y", 
          pch=16, col=rgb(0,0,0,0.5))
+  
+  # it could also be good to show that the time that a nestling is measured
+  # does not drive this relationship (nestlings measured later in the day
+  # will be heavier, which could lead to a mass-time-movement relationship):
+  
+  plot(ar$time, jitter(ar$total), log="y", 
+       pch=16, col=rgb(0,0,0,0.5))
+  # No clear relationship, if anything negative. Good!
     
     
   summary(lm(log(edgesingle$end-edgesingle$start+0.5)~edgesingle$d12mass*edgesingle$wall))
