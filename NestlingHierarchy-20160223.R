@@ -2986,24 +2986,15 @@ approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
 # because the hierarchy calculations for these
 # broods do not reflect reality.
 
-# In addition, in October 2015 I established that there
-# were nestlings whose identities were uncertain. These
-# nestlings were nail-clipped and cross-fostered, and 
-# either there was an issue at cross-fostering or their
-# nail cuts grew out leading to uncertainty over their
-# exact identity. There is probably overlap between these
-# nestlings and the nestlings that are missing day two
-# mass, but it will be important to check:
+# I used to have a list here for nestlings where there had been
+# cross-fostering and nail clipping errors and we could not be
+# certain which nestling was which. However, we took an extra 
+# blood sample, and I have compared the blood samples before and
+# after cross-fostering and at ringing to establish which nestling
+# was which. The two main mistakes have been corrected in the
+# database and in my behavioural data and so there is no need 
+# to exclude these nestlings any more.
 
-# nestlings with the following bird IDs:
-# 5342, 5344, 6283, 6284, 6285, 6286, 6287, 6288, 6289,
-# 6279, 6280, 6281, 6282, 6869, 6937, 6979, 6986, 6300, 6874
-# and brood ids 1366, 1368, and 1522.
-
-# I think it is valid to use these broods for the
-# main models, but to secondarily see whether the
-# model conclusions change if I exclude these broods.
-# But first, I need to know which broods they are:
 
 # list which rows contain missing data:
 na12 <- which(is.na(ar$mass))
@@ -3031,22 +3022,11 @@ s.exclude2 <- unique(ar$social[na2])
 n.exclude <- unique(ar$natal[na12])
 n.exclude2 <- unique(ar$natal[na2])
 
-# In addition, in October 2015 I established that there
-# were nestlings whose identities were uncertain. These
-# nestlings were nail-clipped and cross-fostered, and 
-# either there was an issue at cross-fostering or their
-# nail cuts grew out leading to uncertainty over their
-# exact identity. There is probably overlap between these
-# nestlings and the nestlings that are missing day two
-# mass, but it will be important to check:
 
-# nestlings with the following bird IDs:
+# the nestlings that needed checking were:
 # 5342, 5344, 6283, 6284, 6285, 6286, 6287, 6288, 6289,
 # 6279, 6280, 6281, 6282, 6869, 6937, 6979, 6986, 6300, 6874
 # and brood ids 1366, 1368, and 1522.
-
-
-
 # On 20160407, I have been through these broods, nestlings, and
 # genotypes. I checked for conflict in the genotypes and for missmatches
 # between the measurements just before and after we realised there was a
