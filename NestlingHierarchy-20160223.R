@@ -3010,11 +3010,7 @@ s.exclude <- unique(ar$social[na12])
 s.exclude2 <- unique(ar$social[na2])
 
 
-
-# 26 social broods to exclude from my first
-# sets of models with the full data set. These
-# models only consider the social brood hierarchy
-# but the following models compare social and 
+# My later models compare social and 
 # natal brood hierarchies, so I need to know
 # which natal hierarchies to also exclude for
 # these models:
@@ -3039,13 +3035,13 @@ n.exclude2 <- unique(ar$natal[na2])
 socialtoexclude <- unique(c(s.exclude, s.exclude2))
 socialtoexclude
 length(socialtoexclude)
-# now 30 broods to exclude. Not bad. Not perfect.
+# 26 broods to exclude. Not bad. Not perfect.
 
 
 nataltoexclude <- unique(c(n.exclude, n.exclude2))
 nataltoexclude
 length(nataltoexclude)
-# 34 natal broods.
+# 27 natal broods.
 
 
 # match this to the data set. With the whole data
@@ -3073,7 +3069,7 @@ edgesocex$zresidmass <- scale(edgesocex$residmass)
 
 length(edgeall[,1])
 length(edgesocex[,1])
-# 272 observations lost
+# 207 observations lost
 
 ###
 
@@ -3095,7 +3091,7 @@ summary(edgeYex$nat.ex)
 
 length(edgecfYe[,1])
 length(edgeYex[,1])
-# lost 231 observations. Ouch
+# lost 166 observations.
 
 
 edgeYex$zd2deltasoc <- scale(edgeYex$d2deltasoc)
