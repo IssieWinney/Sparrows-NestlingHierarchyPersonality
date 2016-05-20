@@ -227,8 +227,9 @@ survdata2$Mass <- stratanams$better[match(survdata2$strata,
 head(survdata2)
 
 # next, make the blank plot frame to take the plot
-  
-  fig1b <- ggplot(survdata2, aes(x=time, y=surv)) +
+
+
+fig1b <- ggplot(survdata2, aes(x=time, y=surv)) +
     geom_blank() +
     xlab(xlab) +
     ylab(ylab) +
@@ -247,25 +248,26 @@ head(survdata2)
           legend.position="bottom",
           legend.direction="vertical",
           panel.border=element_rect(fill=NA))
+
   
-  # make the y-axis go to zero
-  fig1b <- fig1b + ylim(0,1)
+# make the y-axis go to zero
+fig1b <- fig1b + ylim(0,1)
   
   
-  # add confidence intervals
+# add confidence intervals
   
   # Create a data frame with stepped lines from the existing data
   
   # for the model
-  n <- nrow(survdata2)
-  ys <- rep(1:n, each = 2)[-2*n] #duplicate row numbers and remove the last one
-  xs <- c(1, rep(2:n, each=2))   #first row 1, and then duplicate row numbers
-  scurve.step2<-data.frame(time=survdata2$time[xs], 
+n <- nrow(survdata2)
+ys <- rep(1:n, each = 2)[-2*n] #duplicate row numbers and remove the last one
+xs <- c(1, rep(2:n, each=2))   #first row 1, and then duplicate row numbers
+scurve.step2<-data.frame(time=survdata2$time[xs], 
                            lower=survdata2$lower[ys], 
                            upper=survdata2$upper[ys],  
                            surv=survdata2$surv[ys], 
                            Mass=survdata2$Mass[ys])
-  
+
   
   
   # this is the line for the data
@@ -301,9 +303,8 @@ head(survdata2)
               aes(x=time, y=surv, col=Mass))
   
   
-  
   fig1b
-
+#
 
 ##########################################################
 # Figure 1c - 20160224
@@ -325,6 +326,10 @@ head(survdata2)
   summary(lm(log(ardu$total+0.5)~ardu$d12mass))
   # so, this first model shows no relationship in general between
   # mass and distance moved.
+  
+  # but try looking at the mass differences cut in to three:
+  ardu$massd12.threecategories <- quantcut(ardu$mass, 
+                                           seq(0,1,by=1/3))
   summary(lm(log(ardu$total+0.5)~ardu$massd12.threecategories))
   # Whereas this model suggests the heaviest nestlings are the ones moving
   # further.
@@ -382,6 +387,9 @@ head(survdata2)
                           labels=c("After", "Before"))
   
   fig1c
+  #
+  #
+  #
 }
 
 ##########################################################
@@ -417,7 +425,7 @@ fig1cnoleg <- fig1c + theme(legend.position="none")
 
 library(gridExtra)
 
-png(filename = "Figures/Figure1-20160224.png",
+png(filename = "Figures/Figure1-20160520.png",
     width=177, height=120, units="mm", res=600)
 
 grid.arrange(fig1a, fig1bnoleg, fig1cnoleg,
@@ -479,7 +487,7 @@ ardu[which(ardu$social==1522),]
 # added one to the y-variables to log the y-axis:
 
 
-png(filename = "Figure2-20151102.png",
+png(filename = "Figures/Figure2-20160520.png",
     width=85, height=85, units="mm", res=600)
 
 par(mar=c(3.5,3.5,1,1))
@@ -509,7 +517,7 @@ dev.off()
 # between them and activity can be separated.
 
 
-png(filename = "FigureS1-20151102.png",
+png(filename = "Figures/FigureS1-20160520.png",
     width=177, height=95, units="mm", res=600)
 
 

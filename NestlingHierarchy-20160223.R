@@ -25,11 +25,19 @@ library(car)
 library(MCMCglmm)
 library(RODBC)
 
+# load the function for calculating the confidence intervals for
+# the coxme model from the profile of likelihoods:
+source("../../RFunctions/coxme-confidenceintervals-20151105.R")
+
 ###############################################################################
 ###############################################################################
 
 # link the database:
-sparrowDB <- odbcConnectAccess2007('C:\\Users\\Issie\\Dropbox\\Database0.75_20160420_AST\\SparrowDatabase0.75.accdb')
+setwd("../../../Dropbox/Database0.75_20160420_AST")
+sparrowDB <- odbcConnectAccess2007('SparrowDatabase0.75.accdb')
+sparrowDB <- odbcConnectAccess('SparrowData.mdb')
+setwd("../../OneDrive/Git-Analysis/Sparrows-NestlingHierarchyPersonality")
+
 
 
 # load in the data on nestling mass on day 2 and 12:
@@ -333,7 +341,7 @@ head(d12social)
 # and in April 2016, I was able to check all potential cross-fostering errors
 # against the genetic identity of each nestling, and swapped CM0326 and CM0333
 # which were found to be the only errors.
-ar <- read.table("C:/Users/Issie/SkyDrive/PhD/masterdatasheets/AR-apr2016-cm0333and326switched.txt", header=T)
+ar <- read.table("C:/Users/Issie/OneDrive/PhD/masterdatasheets/AR-apr2016-cm0333and326switched.txt", header=T)
 
 head(ar)
 str(ar)
@@ -667,7 +675,10 @@ plot(singletarsusmass$mass, singletarsusmass$tarsus)
 # now take the residuals:
 lmt <- lm(mass~tarsus, data=singletarsusmass)
 plot(lmt)
-
+#
+#
+##
+#
 
 
 
@@ -1288,7 +1299,9 @@ table(edgesingle$catsocd12.2)
 edgesingle$zresidmass <- scale(edgesingle$residmass)
 edgesingle$zd2mass <- scale(edgesingle$d2mass)
 
-#################
+####################################################################
+####################################################################
+
 
 
 
@@ -1491,11 +1504,8 @@ anova(model24, model23)
 
 
 
-#############
-
-
-
-####
+##############################################################################
+##############################################################################
 
 #### SAMPLE SIZES ####
 
@@ -1509,15 +1519,63 @@ anova(model24, model23)
 # number of individuals
 length(unique(ardu$birdid))
 
-# for the methods: number of cross-fostering affected
-# nestlings that were actually cross-fostered (i.e.
-# P plus F):
+# how many individuals did I exclude for having no tarsus,
+# day 2 mass or day 12 mass measurements?
+length(unique(ar12$birdid)) - length(unique(ar123m12tarsus$birdid))
+
+
+
+# are the day two and 12 hierarchies too similar to pull apart?
+plot(ardu$d2deltasoc, ardu$d12deltasoc)
+cor(ardu$d2deltasoc, ardu$d12deltasoc)
+
+# very similar. This might make the interaction a bit hard to
+# distinguish.
+
+# the cfY subset:
+arducfY <- subset(ardu, ardu$CFN=="cfY")
+summary(arducfY)
+table(arducfY$CFN)
+
+# what are the changes in hierarchy position within this group?
+
+arducfY$deld2 <- arducfY$d2deltasoc - arducfY$d2deltanat
+
+arducfY$deld2d12 <- arducfY$d12deltasoc - arducfY$d2deltasoc
+summary(arducfY$deld2)
+summary(arducfY$deld2d12)
+
+##############################################################################
+##############################################################################
+
+
+### TABLE 1 ###
+
+length(unique(edgeall$birdid))
+length(unique(edgecfYe$birdid))
+
+# number of cross-fostering affected nestlings that
+# were actually cross-fostered (i.e. P plus F):
 table(ardu$FPLN, ardu$CFN)
 # versus the whole data set:
 table(ardu$FPLN)
 
+
+# versus the subset:
+table(arducfY$FPLN, arducfY$CFN)
+
+
+
+# number of social and natal broods
+length(unique(ardu$social))
+length(unique(ardu$natal))
+length(unique(arducfY$social))
+length(unique(arducfY$natal))
+
+
 # number of assays
 length(ar123m12tarsus$birdid)
+table(ar123m12tarsus$CFN)
 
 # what is the data like after being split in to
 # up to two nestlings per record?
@@ -1526,10 +1584,21 @@ length(edgeall$end)
 table(edgeall$finish)
 table(edgeall$finish,edgeall$wall)
 
+length(edgecfYe$end)
+table(edgecfYe$finish)
+table(edgecfYe$finish,edgecfYe$wall)
 
-# number of social and natal broods
-length(unique(ardu$social))
-length(unique(ardu$natal))
+### end of TABLE 1 ###
+
+##############################################################################
+##############################################################################
+
+# proportion of individuals reared in a different social to natal
+# brood in the full data set versus the subset:
+(table(ardu$FPLN)[1]+table(ardu$FPLN)[4])/
+  (sum(table(ardu$FPLN)))
+(table(arducfY$FPLN)[1]+table(arducfY$FPLN)[3])/
+  (sum(table(arducfY$FPLN)))
 
 # overlap between the natal and social brood ids
 # where zero implies they are not the same
@@ -1547,12 +1616,8 @@ summary(ardu$total)
 
 # my cross-fostered nestlings should all
 # have zeroes:
-table(ardu$CFN, ardu$samenatalsocial)
-# no...
 
 table(ardu$FPLN, ardu$samenatalsocial)
-# oh! CFN are just nestlings that are in a brood
-# where cross-fostering occurred.
 
 
 
@@ -1568,6 +1633,7 @@ ardu$CFN <- as.factor(ardu$CFN)
 
 kruskal.test(ardu$d2mass, ardu$CFN)
 kruskal.test(ardu$d2mass~ardu$CFN) # checking that this is identical to previous
+
 kruskal.test(ardu$mass, ardu$CFN)
 
 # does day 2 hierarchy differ significantly between
@@ -1598,20 +1664,9 @@ mean(ardu$d12deltasoc)
 sd(ardu$d12deltasoc)
 
 
-# are the day two and 12 hierarchies too similar to pull apart?
-plot(ardu$d2deltasoc, ardu$d12deltasoc)
-cor(ardu$d2deltasoc, ardu$d12deltasoc)
-
-# very similar. This might make the interaction a bit hard to
-# distinguish.
-
 
 # is there an imbalance in the number of natal versus
 # social broods in the CF subset?
-arducfY <- subset(ardu, ardu$CFN=="cfY")
-summary(arducfY)
-table(arducfY$CFN)
-
 
 length(unique(arducfY$natal))
 length(unique(arducfY$social))
@@ -1748,12 +1803,15 @@ cor(edgecfYe$d2deltanat, edgecfYe$d2deltasoc)
 # day two mass is quite similar to the
 # day two residual mass hierarchies
 cor(ardu$d2deltanat, ardu$d2mass)
-cor(ardu$d2deltasoc, ardu$d2mass)
 cor(ardu$residmass, ardu$mass)
 cor(ardu$d12deltasoc, ardu$mass)
 cor(ardu$deld2, ardu$mass)
 cor(ardu$deld2, ardu$d2mass)
-#day two versus 12 mass
+
+# day 2 mass versus day 2 hierarchy, used for Text S1:
+cor(ardu$d2deltasoc, ardu$d2mass)
+
+#day two versus 12 mass, used for Text S1:
 cor(ardu$mass, ardu$d2mass)
 
 cor(edgecfYe$d12mass, edgecfYe$deld2d12)
@@ -1977,6 +2035,9 @@ coxme1.reduced.testnested <- coxme(Surv(start, end, finish)~ strata(wall)+
 
 print(coxme1.reduced.testnested)
 
+
+### TABLE 2 ####
+
 # now the main model:
 coxme1.reduced <- coxme(Surv(start, end, finish)~ strata(wall)+
                           zd2deltasoc*zd12deltasoc + CFN+ 
@@ -1985,6 +2046,9 @@ coxme1.reduced <- coxme(Surv(start, end, finish)~ strata(wall)+
               data=edgeall)
 
 print(coxme1.reduced) 
+
+###
+
 # the variance components are the same magnitude however I express them.
 anova(coxme1.reduced)
 # anova interesting, but not useful for significnce
@@ -2001,6 +2065,9 @@ coxme1.reduced.refine <- coxme(Surv(start, end, finish)~ strata(wall)+
                         refine.n=100)
 
 coxme1.reduced.refine$refine
+
+# current correction 1.19, std 0.54, but I know this
+# can vary.
 # so this is hard for the model to fit, but not
 # impossible. More data points per individual
 # would be much better (the Laplace approximation
@@ -2020,7 +2087,7 @@ coxme1.reduced.b <- coxme(Surv(start, end, finish)~ strata(wall)+
 print(coxme1.reduced.b)
 # model chisq 247.91
 # difference between this and full model:
-362.64-247.28
+362.64-247.91
 
 # knock out social brood id
 coxme1.reduced.s <- coxme(Surv(start, end, finish)~ strata(wall)+
@@ -2035,8 +2102,14 @@ print(coxme1.reduced.s)
 362.64-327.39
 
 # or as an equation to calculate the chisq from the models:
-2*(coxme1.reduced$loglik[1:2] - coxme1.reduced.b$loglik[1:2])
-2*(coxme1.reduced$loglik[1:2] - coxme1.reduced.s$loglik[1:2])
+# (note, following the course notes, the chisq difference is
+# the chisq of one model subtracted from the other. No doubling,
+# since the value is already a chisq!):
+coxme1.reduced$loglik[1:2] - coxme1.reduced.b$loglik[1:2]
+coxme1.reduced$loglik[1:2] - coxme1.reduced.s$loglik[1:2]
+# and the p-value:
+1-pchisq(coxme1.reduced$loglik[1:2] - coxme1.reduced.b$loglik[1:2],1)
+1-pchisq(coxme1.reduced$loglik[1:2] - coxme1.reduced.s$loglik[1:2],1)
 
 
 # what is the profile likelihood for each random
@@ -2046,72 +2119,15 @@ print(coxme1.reduced.s)
 # function (see the variance vignette at
 # https://cran.r-project.org/web/packages/coxme/vignettes/variance.pdf):
 
-# create a vector to store the log-likelihoods,
-# and one that is of 'double precision' which
-# means R will store twice as many of the decimal
-# point values:
+# the function coxmeCI, adapted from the advice of Terry
+# Therneau, can do this:
 
-estvars <- seq(0.7,1.05,length=20)^2
+coxme1.reduced.birdid <- coxmeCI(model=coxme1.reduced, n.random=2, desired.random=1, 
+        low=0.7, high=1.05, n.estimates=20)
 
-coxme1.reduced.birdlogliks <- double(20)
+coxme1.reduced.social <- coxmeCI(model=coxme1.reduced, n.random=2, desired.random=2, 
+                                 low=0.5, high=1.1, n.estimates=20)
 
-# the second variance is set at the value of the
-# social brood variance from the original model.
-
-for(i in 1:length(coxme1.reduced.birdlogliks)){
-  coxme1.reduced.birdlimits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                            zd2deltasoc*zd12deltasoc + CFN+ 
-                            zd12mass + 
-                            (1|factorbirdid) + (1|social),
-                          data=edgeall,
-                          vfixed=list(estvars[i],
-                                      coxme1.reduced$vcoef$factorsocial[[1]]))
-  
-  coxme1.reduced.birdlogliks[i] <- 2*diff(coxme1.reduced.birdlimits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxme1.reduced.birdlogliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxme1.reduced$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxme1.reduced$loglik)[1] - coxme1.reduced.birdlogliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
-
-# now for the social brood:
-
-estvars <- seq(0.5,1,length=20)^2
-
-coxme1.reduced.sociallogliks <- double(20)
-
-
-for(i in 1:length(coxme1.reduced.sociallogliks)){
-  coxme1.reduced.sociallimits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                                       zd2deltasoc*zd12deltasoc + CFN+ 
-                                       zd12mass + 
-                                       (1|factorbirdid) + (1|social),
-                                     data=edgeall,
-                                     vfixed=list(coxme1.reduced$vcoef$factorbirdid[[1]],
-                                                 estvars[i]))
-  
-  coxme1.reduced.sociallogliks[i] <- 2*diff(coxme1.reduced.sociallimits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxme1.reduced.sociallogliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxme1.reduced$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxme1.reduced$loglik)[1] - coxme1.reduced.sociallogliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
 
 #############################################################
 #############################################################
@@ -2134,7 +2150,7 @@ coxme1.full.randoexperiment1 <- coxme(Surv(start, end, finish)~ strata(wall)+
                        zd12mass + zd2mass + zresidmass +
                        location + noise + zwd1to3 +
                        factorcohort + releaser + ztime + zendprob +
-                       (zwd1to3|factorbirdid) + (1|factorbirdid) +
+                       (1|factorbirdid/zwd1to3) +
                          (1|factorsocial),
                      data=edgeall)
 
@@ -2165,6 +2181,7 @@ print(coxme1.full.randoexperiment2)
 #############################################################
 #############################################################
 
+### TABLE S1 ###
 
 # and now the full model:
 
@@ -2198,7 +2215,6 @@ coxme1.full.b <- coxme(Surv(start, end, finish)~ strata(wall)+
                      data=edgeall)
 
 print(coxme1.full.b)
-# chisq of this model is 349.30
 
 # and significance of social brood id:
 
@@ -2211,89 +2227,27 @@ coxme1.full.s <- coxme(Surv(start, end, finish)~ strata(wall)+
                      data=edgeall)
 
 print(coxme1.full.s)
-# chisq of this model is 468.40
 
-# chisq of birdid:
-489.11-349.3
-# significance of birdid:
-1-pchisq(489.11-349.3, 1)
+# the difference in chisq values for each random effect:
 
-# chisq of social brood:
-489.11-468.40
-# significance of social brood:
-1-pchisq(460.94-441.32, 1)
+coxme1.full$loglik[1:2] - coxme1.full.b$loglik[1:2]
+coxme1.full$loglik[1:2] - coxme1.full.s$loglik[1:2]
 
-
+# and the p-values:
+1-pchisq(coxme1.full$loglik[1:2] - coxme1.full.b$loglik[1:2],1)
+1-pchisq(coxme1.full$loglik[1:2] - coxme1.full.s$loglik[1:2],1)
 
 # distributions of the likelihoods for each random effect:
 
-# bird id:
+coxme1.full.birdid <- coxmeCI(model=coxme1.full, n.random=2, desired.random = 1,
+        low=0.7, high=1.2, n.estimates = 20)
+coxme1.full.social <- coxmeCI(model=coxme1.full, n.random=2, desired.random = 2,
+        low=0.4, high=0.9, n.estimates = 20)
 
-estvars <- seq(0.7,1.2,length=20)^2
+#############################################################
+#############################################################
 
-coxme1.full.birdlogliks <- double(20)
-
-
-for(i in 1:length(coxme1.full.birdlogliks)){
-  coxme1.full.birdlimits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                                      zd2deltasoc*zd12deltasoc + CFN+ 
-                                      zd12mass + zd2mass + zresidmass +
-                                      location + noise + factorwd1to3 +
-                                      factorcohort + releaser + ztime +zendprob +
-                                      (1|factorbirdid) + (1|social),
-                                    data=edgeall,
-                                    vfixed=list(estvars[i],
-                                                coxme1.full$vcoef$factorsocial[[1]]))
-  
-  coxme1.full.birdlogliks[i] <- 2*diff(coxme1.full.birdlimits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxme1.full.birdlogliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxme1.full$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxme1.full$loglik)[1] - coxme1.full.birdlogliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
-
-# social brood id:
-estvars <- seq(0.4,0.9,length=20)^2
-
-coxme1.full.sociallogliks <- double(20)
-
-
-for(i in 1:length(coxme1.full.sociallogliks)){
-  coxme1.full.sociallimits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                                      zd2deltasoc*zd12deltasoc + CFN+ 
-                                      zd12mass + zd2mass + zresidmass +
-                                      location + noise + factorwd1to3 +
-                                      factorcohort + releaser + ztime +zendprob +
-                                         (1|factorbirdid) + (1|social),
-                                       data=edgeall,
-                                       vfixed=list(coxme1.full$vcoef$factorbirdid[[1]],
-                                                   estvars[i]))
-  
-  coxme1.full.sociallogliks[i] <- 2*diff(coxme1.full.sociallimits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxme1.full.sociallogliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxme1.full$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxme1.full$loglik)[1] - coxme1.full.sociallogliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
-
+# RESULTS, text
 
 # so there is some persistent effect where nestlings
 # in cross-fostered broods that do not move in the
@@ -2321,7 +2275,8 @@ coxme1.CFonly <- coxme(Surv(start, end, finish)~ strata(wall)+
 
 print(coxme1.CFonly)
 
-# a bit. The last check is whether the relationship
+# not so significant but still a large effect. 
+# The last check is to see whether the relationship
 # withstands the removal of the nestlings where we
 # are missing some day two masses from their brood
 # or where there was a mix-up in nestling identity,
@@ -2333,53 +2288,49 @@ print(coxme1.CFonly)
 # effect come from a shared social mother?
 # Add social mother to the analysis:
 
-coxme1.maternal <- coxme(Surv(start, end, finish)~ strata(wall)+
-                           zd2deltasoc*zd12deltasoc + relevel(CFN,2) + 
+# note. Now there are some parents missing in this data set
+# which was not the case before. These missing parents need
+# to be removed before running the model. That might explain
+# why the loglikelihood was changing as well...
+
+edge.completemums <- edgeall[-which(is.na(edgeall$factormum)),]
+which(is.na(edge.completemums$factormum))
+summary(edge.completemums)
+
+# how many nestlings were removed?
+length(unique(edgeall$birdid))
+length(unique(edge.completemums$birdid))
+
+coxme1mum.reduced <- coxme(Surv(start, end, finish)~ strata(wall)+
+                          zd2deltasoc*zd12deltasoc + CFN+ 
+                          zd12mass + 
+                          (1|factorbirdid) + (1|factorsocial),
+                        data=edge.completemums)
+
+coxme1mum.maternal <- coxme(Surv(start, end, finish)~ strata(wall)+
+                           zd2deltasoc*zd12deltasoc + CFN + 
                            zd12mass + 
-                           (1|factorbirdid) + (1|factorsocial) + (1|factormum),
-                         data=edgeall)
+                           (1|factorbirdid) + (1|factorsocial) + 
+                           (1|factormum),
+                         data=edge.completemums)
 
-print(coxme1.maternal)
+print(coxme1mum.maternal)
 
 
-# chisq of this model 363.25
-print(coxme1.reduced)
-# chisq of the model this is based on also 363.25
+# chisq of this model 353.96
+print(coxme1mum.reduced)
+# chisq of the model this is based on 362.64
+
+coxme1mum.maternal$loglik[1:2] - coxme1mum.reduced$loglik[1:2]
+# how weird, a tiny bit better *without* the mother...
 
 
 
 # distributions of the likelihoods for the maternal effect:
 
-estvars <- seq(0.01,0.5,length=20)^2
-
-coxme1.maternal.logliks <- double(20)
-
-
-for(i in 1:length(coxme1.maternal.logliks)){
-  coxme1.maternal.limits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                             zd2deltasoc*zd12deltasoc + relevel(CFN,2) + 
-                             zd12mass + 
-                             (1|factorbirdid) + (1|factorsocial) + (1|factormum),
-                                  data=edgeall,
-                                  vfixed=list(coxme1.maternal$vcoef$factorbird[[1]],
-                                              coxme1.maternal$vcoef$factorsocial[[1]],
-                                              estvars[i]))
-  
-  coxme1.maternal.logliks[i] <- 2*diff(coxme1.maternal.limits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxme1.maternal.logliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxme1.maternal$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxme1.maternal$loglik)[1] - coxme1.maternal.logliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-# so since this is effectively a zero, I think it is safe to
-# assume the variance component lower bound is zero
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
+coxme1mum.maternal.maternalid <- coxmeCI(coxme1mum.maternal,
+                                      n.random=3, desired.random=3, 
+                                      low=0.02, high=0.5, n.estimates=20)
 
 
 
@@ -2477,6 +2428,12 @@ check2.3z
 
 # well, better than last time.
 
+###########################################################
+###########################################################
+### TABLE 3 ###
+###########################################################
+###########################################################
+
 # the reduced model:
 
 coxmeCF.reduced <- coxme(Surv(start, end, finish)~ strata(wall)+
@@ -2487,7 +2444,7 @@ coxmeCF.reduced <- coxme(Surv(start, end, finish)~ strata(wall)+
 
 print(coxmeCF.reduced)
 
-# chisq 154.74
+# chisq 160.71
 
 # ask how much the model random effects were
 # ?corrected? during model fit:
@@ -2500,10 +2457,8 @@ coxmeCF.reduced.refine <- coxme(Surv(start, end, finish)~ strata(wall)+
                          refine.n=100)
 
 coxmeCF.reduced.refine$refine
-# this suggests the correction is potentially substantial.
-# but I already knew this because it is 605-1106 data points
-# fitted on 155.13 degrees of freedom from the random effects,
-# so it is tough for a hazards model.
+# the correction is mild on this run (0.61 with a
+# std of 0.33) but I know the correction can vary.
 
 
 # testing significances:
@@ -2517,9 +2472,9 @@ coxmeCF.reduced.b <- coxme(Surv(start, end, finish)~ strata(wall)+
 print(coxmeCF.reduced.b)
 # natal brood accounting for more now. Hierarchy
 # difference matters a little, but this model does
-# not have main random effect...
-# model chisq 100.16
-154.74-100.16
+# not have the main random effect of bird id...
+# model chisq 100.52
+coxmeCF.reduced$loglik[1:2] - coxmeCF.reduced.b$loglik[1:2]
 
 
 coxmeCF.reduced.s <- coxme(Surv(start, end, finish)~ strata(wall)+
@@ -2532,9 +2487,8 @@ print(coxmeCF.reduced.s)
 # variance that used to be in social. Day
 # two change a little more important but
 # still not major.
-# model chisq 147.54
-154.74-147.54
-1-pchisq(7.2,1)
+coxmeCF.reduced$loglik[1:2] - coxmeCF.reduced.s$loglik[1:2]
+1-pchisq(coxmeCF.reduced$loglik[2] - coxmeCF.reduced.s$loglik[2],1)
 
 
 coxmeCF.reduced.n <- coxme(Surv(start, end, finish)~ strata(wall)+
@@ -2544,117 +2498,30 @@ coxmeCF.reduced.n <- coxme(Surv(start, end, finish)~ strata(wall)+
 
 print(coxmeCF.reduced.n)
 # is like the full model
-# model chisq 154.74. Full model 154.74
-# so no change
+coxmeCF.reduced$loglik[1:2] - coxmeCF.reduced.n$loglik[1:2]
+# so virtually no change.
 
 
+# distributions of the likelihoods for birdid,
+# social, and natal brood:
 
-# distributions of the likelihoods for birdid:
+coxmeCF.reduced.CIbirdid <- coxmeCI(coxmeCF.reduced, n.random=3, 
+                                           desired.random=1, low=0.7, 
+                                           high=1.2, n.estimates=20)
 
-estvars <- seq(0.7,1.2,length=20)^2
+coxmeCF.reduced.CIsocial <- coxmeCI(coxmeCF.reduced, n.random=3, 
+                                    desired.random=2, low=0.2, 
+                                    high=1.0, n.estimates=20)
 
-coxmeCF.bird.logliks <- double(20)
+coxmeCF.reduced.CInatal <- coxmeCI(coxmeCF.reduced, n.random=3, 
+                                    desired.random=3, low=0.01, 
+                                    high=0.6, n.estimates=20)
 
-
-for(i in 1:length(coxmeCF.bird.logliks)){
-  coxmeCF.reduced.limits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                             zdeld2 + zdeld2d12 +
-                             (1|factorbirdid) + (1|factorsocial) + 
-                             (1|factornatal),
-                           data=edgecfYe,
-                           vfixed=list(estvars[i], 
-                                       coxmeCF.reduced$vcoef$factorsocial[[1]],
-                                       coxmeCF.reduced$vcoef$factornatal[[1]]))
-  
-  coxmeCF.bird.logliks[i] <- 2*diff(coxmeCF.reduced.limits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxmeCF.bird.logliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxmeCF.reduced$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxmeCF.reduced$loglik)[1] - coxmeCF.bird.logliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-# so since this is effectively a zero, I think it is safe to
-# assume the variance component lower bound is zero
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
-
-
-# distributions of the likelihoods for social brood id:
-
-estvars <- seq(0.2,1.0,length=20)^2
-
-coxmeCF.social.logliks <- double(20)
-
-
-for(i in 1:length(coxmeCF.social.logliks)){
-  coxmeCF.reduced.limits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                                    zdeld2 + zdeld2d12 +
-                                    (1|factorbirdid) + (1|factorsocial) + 
-                                    (1|factornatal),
-                                  data=edgecfYe,
-                                  vfixed=list(coxmeCF.reduced$vcoef$factorbirdid[[1]],
-                                              estvars[i], 
-                                              coxmeCF.reduced$vcoef$factornatal[[1]]))
-  
-  coxmeCF.social.logliks[i] <- 2*diff(coxmeCF.reduced.limits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxmeCF.social.logliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxmeCF.reduced$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxmeCF.reduced$loglik)[1] - coxmeCF.social.logliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-# so since this is effectively a zero, I think it is safe to
-# assume the variance component lower bound is zero
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
-
-
-# distributions of the likelihoods for natal brood id:
-
-estvars <- seq(0.01,0.6,length=20)^2
-
-coxmeCF.natal.logliks <- double(20)
-
-
-for(i in 1:length(coxmeCF.natal.logliks)){
-  coxmeCF.reduced.limits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                                    zdeld2 + zdeld2d12 +
-                                    (1|factorbirdid) + (1|factorsocial) + 
-                                    (1|factornatal),
-                                  data=edgecfYe,
-                                  vfixed=list(coxmeCF.reduced$vcoef$factorbirdid[[1]], 
-                                              coxmeCF.reduced$vcoef$factorsocial[[1]],
-                                              estvars[i]))
-  
-  coxmeCF.natal.logliks[i] <- 2*diff(coxmeCF.reduced.limits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxmeCF.natal.logliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxmeCF.reduced$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxmeCF.reduced$loglik)[1] - coxmeCF.natal.logliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-# so since this is effectively a zero, I think it is safe to
-# assume the variance component lower bound is zero
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
+###########################################################
+###########################################################
+### TABLE S2 ###
+###########################################################
+###########################################################
 
 # the full model
 
@@ -2669,7 +2536,7 @@ coxmeCF.full <- coxme(Surv(start, end, finish)~ strata(wall)+
 
 print(coxmeCF.full)
 
-# model chisq 231.23
+# model chisq 239.59
 
 
 # significances:
@@ -2685,8 +2552,8 @@ coxmeCF.full.b <- coxme(Surv(start, end, finish)~ strata(wall)+
 print(coxmeCF.full.b)
 # again, some of the variance is taken up
 # by natal brood
-# model chisq 166.04
-231.23-166.04
+
+coxmeCF.full$loglik[1:2] - coxmeCF.full.b$loglik[1:2]
 
 
 
@@ -2701,9 +2568,9 @@ coxmeCF.full.s <- coxme(Surv(start, end, finish)~ strata(wall)+
 print(coxmeCF.full.s)
 # natal brood partially takes some social
 # brood vaariance, so does bird id
-# model chisq 228.79
-231.23-228.79
-1-pchisq(2.44,1)
+
+coxmeCF.full$loglik[1:2] - coxmeCF.full.s$loglik[1:2]
+1-pchisq(coxmeCF.full$loglik[2] - coxmeCF.full.s$loglik[2],1)
 
 
 
@@ -2716,179 +2583,69 @@ coxmeCF.full.n <- coxme(Surv(start, end, finish)~ strata(wall)+
                       data=edgecfYe)
 
 print(coxmeCF.full.n)
-# model chisq 231.26
+
+coxmeCF.full$loglik[1:2] - coxmeCF.full.n$loglik[1:2]
+
 # suggesting this is *better* than the full model...
 
 
 
 
-# distributions of the likelihoods for bird id:
-
-estvars <- seq(0.7,1.3,length=20)^2
-
-coxmeCFfull.bird.logliks <- double(20)
+# distributions of the likelihoods for bird id,
+# social brood, and natal brood:
 
 
-for(i in 1:length(coxmeCFfull.bird.logliks)){
-  coxmeCF.full.limits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                                    zdeld2 + zdeld2d12 +
-                                    location + noise + factorwd1to3 +
-                                    factorcohort + releaser + ztime +
-                                    zendprob +
-                                    (1|factorbirdid) + (1|factorsocial) + 
-                                    (1|factornatal),
-                                  data=edgecfYe,
-                                  vfixed=list(estvars[i], 
-                                              coxmeCF.full$vcoef$factorsocial[[1]],
-                                              coxmeCF.full$vcoef$factornatal[[1]]))
-  
-  coxmeCFfull.bird.logliks[i] <- 2*diff(coxmeCF.full.limits$loglik)[1]
-}
+coxmeCF.full.CIbirdid <- coxmeCI(coxmeCF.full, n.random=3, 
+                                    desired.random=1, low=0.7, 
+                                    high=1.3, n.estimates=20)
 
-plot(sqrt(estvars), coxmeCFfull.bird.logliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxmeCF.full$loglik)[1] - qchisq(.95, 1), lty=2)
+coxmeCF.full.CIsocial <- coxmeCI(coxmeCF.full, n.random=3, 
+                                    desired.random=2, low=0.2, 
+                                    high=1.0, n.estimates=20)
 
-# to get the confidence intervals:
-
-temp <- 2*diff(coxmeCF.full$loglik)[1] - coxmeCFfull.bird.logliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-# so since this is effectively a zero, I think it is safe to
-# assume the variance component lower bound is zero
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
-
-# distributions of the likelihoods for social brood id:
-
-estvars <- seq(0.2,1,length=20)^2
-
-coxmeCFfull.social.logliks <- double(20)
-
-
-for(i in 1:length(coxmeCFfull.social.logliks)){
-  coxmeCF.full.limits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                                 zdeld2 + zdeld2d12 +
-                                 location + noise + factorwd1to3 +
-                                 factorcohort + releaser + ztime +
-                                 zendprob +
-                                 (1|factorbirdid) + (1|factorsocial) + 
-                                 (1|factornatal),
-                               data=edgecfYe,
-                               vfixed=list(coxmeCF.full$vcoef$factorbirdid[[1]],
-                                           estvars[i], 
-                                           coxmeCF.full$vcoef$factornatal[[1]]))
-  
-  coxmeCFfull.social.logliks[i] <- 2*diff(coxmeCF.full.limits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxmeCFfull.social.logliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxmeCF.full$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxmeCF.full$loglik)[1] - coxmeCFfull.social.logliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-# so since this is effectively a zero, I think it is safe to
-# assume the variance component lower bound is zero
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
-
-
-# distributions of the likelihoods for natal brood id:
-
-estvars <- seq(0.01,0.6,length=20)^2
-
-coxmeCFfull.natal.logliks <- double(20)
-
-
-for(i in 1:length(coxmeCFfull.natal.logliks)){
-  coxmeCF.full.limits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                                 zdeld2 + zdeld2d12 +
-                                 location + noise + factorwd1to3 +
-                                 factorcohort + releaser + ztime +
-                                 zendprob +
-                                 (1|factorbirdid) + (1|factorsocial) + 
-                                 (1|factornatal),
-                               data=edgecfYe,
-                               vfixed=list(coxmeCF.full$vcoef$factorbirdid[[1]],
-                                           coxmeCF.full$vcoef$factorsocial[[1]],
-                                           estvars[i]))
-  
-  coxmeCFfull.natal.logliks[i] <- 2*diff(coxmeCF.full.limits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxmeCFfull.natal.logliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxmeCF.full$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxmeCF.full$loglik)[1] - coxmeCFfull.natal.logliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-# so since this is effectively a zero, I think it is safe to
-# assume the variance component lower bound is zero
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
-
+coxmeCF.full.CInatal <- coxmeCI(coxmeCF.full, n.random=3, 
+                                   desired.random=3, low=0.01, 
+                                   high=0.6, n.estimates=20)
 
 
 # what if I add the mother?
+
+# as before, I need to remove missing mother IDs because they
+# were not present in the previous data set.
+
+edgecfYe.completemums <- edgecfYe[-which(is.na(edgecfYe$factormum)),]
+summary(edgecfYe.completemums)
+
+# how many nestlings were removed?
+length(unique(edgecfYe$birdid))
+length(unique(edgecfYe.completemums$birdid))
 
 coxmeCF.maternal <- coxme(Surv(start, end, finish)~ strata(wall)+
                            zdeld2 + zdeld2d12 +
                            (1|factorbirdid) + (1|factorsocial) + 
                            (1|factornatal) + (1|factormum),
-                         data=edgecfYe)
+                         data=edgecfYe.completemums)
 
 print(coxmeCF.maternal)
-#chisq of this model 154.74
-print(coxmeCF.reduced)
-# chisq of the original model 154.74
+#chisq of this model 157.17
 
+# need to compare to original model minus those without
+# mums:
+
+coxmeCF.reduced.maternal <- coxme(Surv(start, end, finish)~ strata(wall)+
+                            zdeld2 + zdeld2d12 +
+                            (1|factorbirdid) + (1|factorsocial) + 
+                            (1|factornatal),
+                          data=edgecfYe.completemums)
+
+coxmeCF.reduced.maternal$loglik[1:2] - coxmeCF.maternal$loglik[1:2]
 
 
 # distributions of the likelihood for maternal id:
 
-estvars <- seq(0.01,0.7,length=20)^2
-
-coxmeCF.mother.logliks <- double(20)
-
-
-for(i in 1:length(coxmeCF.mother.logliks)){
-  coxmeCF.maternal.limits <- coxme(Surv(start, end, finish)~ strata(wall)+
-                              zdeld2 + zdeld2d12 +
-                              (1|factorbirdid) + (1|factorsocial) + 
-                              (1|factornatal) + (1|factormum),
-                            data=edgecfYe,
-                            vfixed=list(coxmeCF.maternal$vcoef$factorbirdid[[1]], 
-                                        coxmeCF.maternal$vcoef$factorsocial[[1]],
-                                        coxmeCF.maternal$vcoef$factornatal[[1]],
-                                        estvars[i]))
-  
-  coxmeCF.mother.logliks[i] <- 2*diff(coxmeCF.maternal.limits$loglik)[1]
-}
-
-plot(sqrt(estvars), coxmeCF.mother.logliks,
-     xlab="Std of the random effect", ylab="2 * loglik")
-abline(h=2*diff(coxmeCF.maternal$loglik)[1] - qchisq(.95, 1), lty=2)
-
-# to get the confidence intervals:
-
-temp <- 2*diff(coxmeCF.maternal$loglik)[1] - coxmeCF.mother.logliks
-approx(temp[1:10], sqrt(estvars[1:10]), 3.84)$y
-# so since this is effectively a zero, I think it is safe to
-# assume the variance component lower bound is zero
-
-approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
-
-
+coxmeCF.full.CImaternal <- coxmeCI(coxmeCF.maternal, n.random=4, 
+                                 desired.random=4, low=0.01, 
+                                 high=0.7, n.estimates=20)
 
 # This model has a lot of random effects for the data.
 # If the model is simplified to only birdID and MotherID
@@ -2900,7 +2657,7 @@ approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
   coxmeCF.maternalandbirdonly <- coxme(Surv(start, end, finish)~ strata(wall)+
                               zdeld2 + zdeld2d12 +
                               (1|factorbirdid) + (1|factormum),
-                            data=edgecfYe)
+                            data=edgecfYe.completemums)
   
   print(coxmeCF.maternalandbirdonly)
   
@@ -2912,7 +2669,7 @@ approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
                                          zdeld2 + zdeld2d12 +
                                          (1|factorbirdid) + (1|factorsocial) +
                                         (1|factormum),
-                                       data=edgecfYe)
+                                       data=edgecfYe.completemums)
   
   print(coxmeCF.maternalsocialbird)
 }
@@ -2939,7 +2696,7 @@ approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
                             factorcohort + releaser + ztime +
                             zendprob +
                             (1|factorbirdid) + (1|factormum),
-                          data=edgecfYe)
+                          data=edgecfYe.completemums)
   
   print(coxmeCF.full.maternalandbird)
   
@@ -2951,7 +2708,7 @@ approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
                                           zendprob +
                                           (1|factorbirdid) + (1|factorsocial) +
                                           (1|factormum),
-                                        data=edgecfYe)
+                                        data=edgecfYe.completemums)
   
   print(coxmeCF.full.maternalsocialbird)
   
@@ -2962,9 +2719,11 @@ approx(temp[11:20], sqrt(estvars[11:20]), 3.84)$y
                                              zendprob +
                                              (1|factorbirdid) + (1|factorsocial) +
                                              (1|factornatal) + (1|factormum),
-                                           data=edgecfYe)
+                                           data=edgecfYe.completemums)
   
   print(coxmeCF.full.maternal)
+  # so with all fixed effects the mother accounts for
+  # a good portion of variance, and won't be significant.
 }
 
 {
@@ -3142,13 +2901,16 @@ print(coxme1.CFonly.conservative)
 
 # mothers:
 
+# remove missing data...
+edgesocex.completemums <- edgesocex[-which(is.na(edgesocex$factormum)),]
+
 coxme1.maternal.conservative <- coxme(Surv(start, end, finish)~ strata(wall)+
                            zd2deltasoc*zd12deltasoc + relevel(CFN,2) + 
                            zd12mass + 
                            (1|factorbirdid) + (1|factorsocial) + (1|factormum),
-                         data=edgesocex)
+                         data=edgesocex.completemums)
 
-print(coxme1.maternal)
+print(coxme1.maternal.conservative)
 
 
 
@@ -3168,12 +2930,13 @@ print(coxmeCF.reduced.conservative)
 
 # and the mum:
 
+edgeYex.completemums <- edgeYex[-which(is.na(edgeYex$factormum)),]
 
 coxmeCF.maternal.conservative <- coxme(Surv(start, end, finish)~ strata(wall)+
                             zdeld2 + zdeld2d12 +
                             (1|factorbirdid) + (1|factorsocial) + 
                             (1|factornatal) + (1|factormum),
-                          data=edgeYex)
+                          data=edgeYex.completemums)
 
 print(coxmeCF.maternal.conservative)
 
@@ -3341,7 +3104,9 @@ print(single.hierarchies.full)
 # endprob hardly matters now. How weird.
 # Some of the coefficients change but the main conclusions
 # remain the same: no hierarchy effects, differences between
-# cross-fostering groups, variance to social brood ID.
+# cross-fostering groups (which are actually larger), 
+# variance to social brood ID. Lower now, which is to be expected
+# when there are 3x fewer data points per brood probably.
 
 
 
@@ -3382,6 +3147,10 @@ single.changeplace.full <- coxme(Surv(start, end, finish)~ strata(wall)+
 
 print(single.changeplace.full)
 
+# in a change to the previous iteration of this script, in this model
+# the variance is partitioned to the social brood and not split between
+# the social and natal brood as before (though note neither random effect
+# is significant as well, see below).
 
 single.changeplace.fullCIsocial <- coxmeCI(single.changeplace.full, n.random=2, 
                      desired.random=1, low=0.02, 
@@ -3413,11 +3182,11 @@ single.changeplace.full.n <- coxme(Surv(start, end, finish)~ strata(wall)+
 print(single.changeplace.full.n)
 
 # significance of social brood:
-1-pchisq(18.53-18.23, 1)
+1-pchisq(single.changeplace.full$loglik[1:2]-single.changeplace.full.s$loglik[1:2], 1)
 
 
 # significance of natal brood:
-1-pchisq(18.53-18.35, 1)
+1-pchisq(single.changeplace.full$loglik[1:2]-single.changeplace.full.n$loglik[1:2], 1)
 
 # the one without fixed effects:
 
@@ -3448,7 +3217,7 @@ single.changeplace.reduced.m <- coxme(Surv(start, end, finish)~ strata(wall)+
 print(single.changeplace.reduced.m)
 
 
-# which comes out as expected. However, in the full model:
+# which comes out as expected. However, in the full model PLUS MASS:
 
 
 
@@ -3469,7 +3238,7 @@ print(single.changeplace.full.m)
 
 single.changeplace.full.mCIsocial <- coxmeCI(single.changeplace.full.m, n.random=2, 
                                            desired.random=1, low=0.02, 
-                                           high=1, n.estimates=20)
+                                           high=0.7, n.estimates=20)
 
 single.changeplace.full.mCInatal <- coxmeCI(single.changeplace.full.m, n.random=2, 
                                           desired.random=2, low=0.02, 
@@ -3499,11 +3268,17 @@ single.changeplace.full.m.n <- coxme(Surv(start, end, finish)~ strata(wall)+
 print(single.changeplace.full.m.n)
 
 # significance of social brood:
-1-pchisq(25.86-25.82, 1)
+# chisq:
+single.changeplace.full.m$loglik[2]-single.changeplace.full.m.s$loglik[2]
+# p-value:
+1-pchisq(single.changeplace.full.m$loglik[2]-single.changeplace.full.m.s$loglik[2], 1)
 
 
 # significance of natal brood:
-1-pchisq(25.86-25.01, 1)
+# chisq:
+single.changeplace.full.m$loglik[2]-single.changeplace.full.m.n$loglik[2]
+# p-value:
+1-pchisq(single.changeplace.full.m$loglik[2]-single.changeplace.full.m.n$loglik[2], 1)
 
 
 
