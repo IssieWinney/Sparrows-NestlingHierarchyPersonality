@@ -426,13 +426,15 @@ fig1cnoleg <- fig1c + theme(legend.position="none")
 library(gridExtra)
 
 png(filename = "Figures/Figure1-20160520.png",
-    width=177, height=120, units="mm", res=600)
+    width=180, height=120, units="mm", res=600)
 
 grid.arrange(fig1a, fig1bnoleg, fig1cnoleg,
              grid.rect(gp=gpar(col="white")), legend1b, legend1c,
              ncol=3, nrow=2, heights=c(2/3, 1/3))
 
 dev.off()
+
+
 
 ##################################################
 
@@ -488,7 +490,7 @@ ardu[which(ardu$social==1522),]
 
 
 png(filename = "Figures/Figure2-20160520.png",
-    width=85, height=85, units="mm", res=600)
+    width=90, height=90, units="mm", res=600)
 
 par(mar=c(3.5,3.5,1,1))
 
